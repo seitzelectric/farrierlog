@@ -1,0 +1,1851 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:table_calendar/table_calendar.dart';
+import '../models/models.dart';
+import '../utils/utils.dart';
+import '../services/database_service.dart';
+import '../services/invoice_service.dart';
+import '../widgets/widgets.dart';
+import 'settings_screen.dart';
+
+// ==================== HOME SCREEN ====================
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
+  final _screens = const [
+    ClientListScreen(),
+    CalendarScreen(),
+    DashboardScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('FarrierLog'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (i) => setState(() => _currentIndex = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Clients',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Calendar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== DASHBOARD SCREEN ====================
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  Map<String, dynamic> _stats = {};
+  List<Visit> _upcomingVisits = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    final stats = await DatabaseService.getStats();
+    final now = DateTime.now();
+    final upcoming = await DatabaseService.getVisits(
+      from: now,
+      to: now.add(const Duration(days: 7)),
+    );
+    if (mounted) {
+      setState(() {
+        _stats = stats;
+        _upcomingVisits = upcoming;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Dashboard')),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              children: [
+                _StatCard(
+                  title: 'Total Clients',
+                  value: '${_stats['totalClients']}',
+                  icon: Icons.people,
+                  color: Colors.blue,
+                ),
+                _StatCard(
+                  title: 'Total Horses',
+                  value: '${_stats['totalHorses']}',
+                  icon: Icons.dataset,
+                  color: Colors.brown,
+                ),
+                _StatCard(
+                  title: 'Upcoming',
+                  value: '${_stats['upcomingVisits']}',
+                  icon: Icons.event,
+                  color: Colors.orange,
+                ),
+                _StatCard(
+                  title: 'Past Due',
+                  value: '${_stats['unpaidVisits']}',
+                  icon: Icons.warning_amber,
+                  color: (_stats['unpaidVisits'] as int) > 0 ? Colors.red : Colors.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatCard(
+                    title: 'Total Revenue',
+                    value: AppUtils.formatCurrency((_stats['totalRevenue'] as num).toDouble()),
+                    icon: Icons.attach_money,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatCard(
+                    title: 'Outstanding',
+                    value: AppUtils.formatCurrency((_stats['outstandingRevenue'] as num).toDouble()),
+                    icon: Icons.account_balance_wallet,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SectionHeader(
+              title: 'Next 7 Days',
+              onAdd: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NewVisitScreen()),
+                );
+                _loadData();
+              },
+              addLabel: 'New Visit',
+            ),
+            if (_upcomingVisits.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No upcoming visits this week'),
+              )
+            else
+              ..._upcomingVisits.map((v) => _VisitListTile(
+                    visit: v,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => VisitDetailScreen(visit: v)),
+                      );
+                      _loadData();
+                    },
+                  )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          )),
+                ),
+                Icon(icon, color: color, size: 20),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== CLIENT LIST SCREEN ====================
+
+class ClientListScreen extends StatefulWidget {
+  const ClientListScreen({super.key});
+
+  @override
+  State<ClientListScreen> createState() => _ClientListScreenState();
+}
+
+class _ClientListScreenState extends State<ClientListScreen> {
+  List<Client> _clients = [];
+  bool _loading = true;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadClients();
+  }
+
+  Future<void> _loadClients() async {
+    final clients = await DatabaseService.getClients(
+        searchQuery: _searchQuery.isEmpty ? null : _searchQuery);
+    if (mounted) {
+      setState(() {
+        _clients = clients;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _addClientDialog() async {
+    final result = await showDialog<Client>(
+      context: context,
+      builder: (_) => const ClientFormDialog(),
+    );
+    if (result != null) {
+      await DatabaseService.insertClient(result);
+      _loadClients();
+    }
+  }
+
+  void _showSearch() {
+    showSearch(
+      context: context,
+      delegate: _ClientSearchDelegate(
+        onQueryChanged: (query) {
+          _searchQuery = query;
+          _loadClients();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Clients'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _showSearch,
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _clients.isEmpty
+              ? EmptyState(
+                  icon: Icons.people_outline,
+                  title: 'No clients yet',
+                  subtitle: 'Add your first client to get started',
+                  action: ElevatedButton.icon(
+                    onPressed: _addClientDialog,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Client'),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadClients,
+                  child: ListView.separated(
+                    itemCount: _clients.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final client = _clients[i];
+                      return ListTile(
+                        leading: ClientAvatar(client: client),
+                        title: Text(client.fullName),
+                        subtitle: Text(client.phone.isNotEmpty
+                            ? client.phone
+                            : client.email.isNotEmpty
+                                ? client.email
+                                : 'No contact info'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ClientDetailScreen(client: client),
+                            ),
+                          );
+                          _loadClients();
+                        },
+                      );
+                    },
+                  ),
+                ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addClientDialog,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _ClientSearchDelegate extends SearchDelegate<String> {
+  final Function(String) onQueryChanged;
+
+  _ClientSearchDelegate({required this.onQueryChanged});
+
+  @override
+  List<Widget>? buildActions(BuildContext context) => [
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
+      ];
+
+  @override
+  Widget? buildLeading(BuildContext context) => IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => close(context, ''),
+      );
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    onQueryChanged(query);
+    return const SizedBox.shrink();
+  }
+}
+
+// ==================== CLIENT FORM DIALOG ====================
+
+class ClientFormDialog extends StatefulWidget {
+  final Client? client;
+
+  const ClientFormDialog({super.key, this.client});
+
+  @override
+  State<ClientFormDialog> createState() => _ClientFormDialogState();
+}
+
+class _ClientFormDialogState extends State<ClientFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _firstNameCtrl;
+  late final TextEditingController _lastNameCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _notesCtrl;
+
+  bool get isEditing => widget.client != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtrl = TextEditingController(text: widget.client?.firstName ?? '');
+    _lastNameCtrl = TextEditingController(text: widget.client?.lastName ?? '');
+    _phoneCtrl = TextEditingController(text: widget.client?.phone ?? '');
+    _emailCtrl = TextEditingController(text: widget.client?.email ?? '');
+    _addressCtrl = TextEditingController(text: widget.client?.address ?? '');
+    _notesCtrl = TextEditingController(text: widget.client?.notes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _addressCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_formKey.currentState!.validate()) {
+      final client = Client(
+        id: widget.client?.id,
+        firstName: _firstNameCtrl.text.trim(),
+        lastName: _lastNameCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        address: _addressCtrl.text.trim(),
+        notes: _notesCtrl.text.trim(),
+      );
+
+      if (isEditing) {
+        await DatabaseService.updateClient(client);
+      }
+
+      if (mounted) Navigator.pop(context, client);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(isEditing ? 'Edit Client' : 'New Client'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _firstNameCtrl,
+                decoration: const InputDecoration(labelText: 'First Name'),
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _lastNameCtrl,
+                decoration: const InputDecoration(labelText: 'Last Name'),
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _phoneCtrl,
+                decoration: const InputDecoration(labelText: 'Phone'),
+                keyboardType: TextInputType.phone,
+              ),
+              TextFormField(
+                controller: _emailCtrl,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              TextFormField(
+                controller: _addressCtrl,
+                decoration: const InputDecoration(labelText: 'Address'),
+              ),
+              TextFormField(
+                controller: _notesCtrl,
+                decoration: const InputDecoration(labelText: 'Notes'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: Text(isEditing ? 'Update' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// ==================== CLIENT DETAIL SCREEN ====================
+
+class ClientDetailScreen extends StatefulWidget {
+  final Client client;
+  const ClientDetailScreen({super.key, required this.client});
+
+  @override
+  State<ClientDetailScreen> createState() => _ClientDetailScreenState();
+}
+
+class _ClientDetailScreenState extends State<ClientDetailScreen> {
+  late Client _client;
+  List<Horse> _horses = [];
+  List<Visit> _visits = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _client = widget.client;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final updatedClient = await DatabaseService.getClient(_client.id!);
+    final horses = await DatabaseService.getHorsesForClient(_client.id!);
+    final visits = await DatabaseService.getVisitsForClient(_client.id!);
+    if (mounted) {
+      setState(() {
+        if (updatedClient != null) _client = updatedClient;
+        _horses = horses;
+        _visits = visits;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _editClient() async {
+    final result = await showDialog<Client>(
+      context: context,
+      builder: (_) => ClientFormDialog(client: _client),
+    );
+    if (result != null) {
+      await DatabaseService.updateClient(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _deleteClient() async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Client',
+      message: 'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, horses, and photos.',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteClient(_client.id!);
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  Future<void> _addHorseDialog() async {
+    final result = await showDialog<Horse>(
+      context: context,
+      builder: (_) => HorseFormDialog(clientId: _client.id!),
+    );
+    if (result != null) {
+      await DatabaseService.insertHorse(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _editHorse(Horse horse) async {
+    final result = await showDialog<Horse>(
+      context: context,
+      builder: (_) => HorseFormDialog(horse: horse),
+    );
+    if (result != null) {
+      await DatabaseService.updateHorse(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _deleteHorse(Horse horse) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Horse',
+      message: 'Are you sure you want to delete ${horse.name}?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteHorse(horse.id!);
+      _loadData();
+    }
+  }
+
+  Future<void> _addVisit() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewVisitScreen(client: _client),
+      ),
+    );
+    _loadData();
+  }
+
+  Future<void> _openUri(String uri) async {
+    final parsed = Uri.parse(uri);
+    if (await canLaunchUrl(parsed)) {
+      await launchUrl(parsed, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_client.fullName),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'edit') _editClient();
+              if (value == 'delete') _deleteClient();
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'edit', child: Text('Edit Client')),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete Client', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              ClientAvatar(client: _client, radius: 30),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_client.fullName, style: Theme.of(context).textTheme.titleLarge),
+                                    if (_client.address.isNotEmpty)
+                                      Text(_client.address, style: Theme.of(context).textTheme.bodyMedium),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                                                    const SizedBox(height: 12),
+
+                          if (_client.phone.isNotEmpty)
+                            ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.phone),
+                              title: Text(_client.phone),
+                              subtitle: const Text('Tap to call • Long-press to text'),
+                              onTap: () => _openUri('tel:${_client.phone}'),
+                              onLongPress: () => _openUri('sms:${_client.phone}'),
+                            ),
+
+                          if (_client.email.isNotEmpty)
+                            ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.email),
+                              title: Text(_client.email),
+                              subtitle: const Text('Tap to email'),
+                              onTap: () => _openUri('mailto:${_client.email}'),
+                            ),
+
+                          if (_client.address.isNotEmpty)
+                            ListTile(
+                              dense: true,
+                              leading: const Icon(Icons.map),
+                              title: Text(_client.address),
+                              subtitle: const Text('Open in maps'),
+                              onTap: () {
+                                final encoded = Uri.encodeComponent(_client.address);
+                                _openUri(
+                                  'https://www.google.com/maps/search/?api=1&query=$encoded',
+                                );
+                              },
+                            ),
+
+                          if (_client.notes.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text('Notes: ${_client.notes}'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  SectionHeader(
+                    title: 'Horses (${_horses.length})',
+                    onAdd: _addHorseDialog,
+                    addLabel: 'Add Horse',
+                  ),
+                  if (_horses.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No horses added yet'),
+                    )
+                  else
+                    ..._horses.map((horse) => Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            leading: HorseAvatar(horse: horse, radius: 20),
+                            title: Text(horse.name),
+                            subtitle: horse.notes.isNotEmpty
+                                ? Text(horse.notes, maxLines: 1, overflow: TextOverflow.ellipsis)
+                                : null,
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') _editHorse(horse);
+                                if (value == 'delete') _deleteHorse(horse);
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )),
+
+                  const SizedBox(height: 16),
+                  SectionHeader(
+                    title: 'Visits (${_visits.length})',
+                    onAdd: _addVisit,
+                    addLabel: 'New Visit',
+                  ),
+                  if (_visits.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No visits yet'),
+                    )
+                  else
+                    ..._visits.map((visit) => _VisitListTile(
+                          visit: visit,
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VisitDetailScreen(visit: visit),
+                              ),
+                            );
+                            _loadData();
+                          },
+                        )),
+                ],
+              ),
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addVisit,
+        icon: const Icon(Icons.add),
+        label: const Text('New Visit'),
+      ),
+    );
+  }
+}
+
+// ==================== HORSE FORM DIALOG ====================
+
+class HorseFormDialog extends StatefulWidget {
+  final int? clientId;
+  final Horse? horse;
+
+  const HorseFormDialog({super.key, this.clientId, this.horse});
+
+  @override
+  State<HorseFormDialog> createState() => _HorseFormDialogState();
+}
+
+class _HorseFormDialogState extends State<HorseFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _breedCtrl;
+  late final TextEditingController _colorCtrl;
+  late final TextEditingController _notesCtrl;
+
+  bool get isEditing => widget.horse != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.horse?.name ?? '');
+    _breedCtrl = TextEditingController(text: widget.horse?.breed ?? '');
+    _colorCtrl = TextEditingController(text: widget.horse?.color ?? '');
+    _notesCtrl = TextEditingController(text: widget.horse?.notes ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _breedCtrl.dispose();
+    _colorCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(isEditing ? 'Edit Horse' : 'New Horse'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Horse Name'),
+                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+              ),
+              TextFormField(
+                controller: _breedCtrl,
+                decoration: const InputDecoration(labelText: 'Breed'),
+              ),
+              TextFormField(
+                controller: _colorCtrl,
+                decoration: const InputDecoration(labelText: 'Color'),
+              ),
+              TextFormField(
+                controller: _notesCtrl,
+                decoration: const InputDecoration(labelText: 'Notes'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(
+                context,
+                Horse(
+                  id: widget.horse?.id,
+                  clientId: widget.clientId ?? widget.horse!.clientId,
+                  name: _nameCtrl.text.trim(),
+                  breed: _breedCtrl.text.trim(),
+                  color: _colorCtrl.text.trim(),
+                  notes: _notesCtrl.text.trim(),
+                ),
+              );
+            }
+          },
+          child: Text(isEditing ? 'Update' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// ==================== NEW VISIT SCREEN ====================
+
+class NewVisitScreen extends StatefulWidget {
+  final Client? client;
+
+  const NewVisitScreen({super.key, this.client});
+
+  @override
+  State<NewVisitScreen> createState() => _NewVisitScreenState();
+}
+
+class _NewVisitScreenState extends State<NewVisitScreen> {
+  final _notesCtrl = TextEditingController();
+  DateTime _selectedDateTime = DateTime.now();
+  List<Client> _clients = [];
+  Client? _selectedClient;
+  List<Horse> _horses = [];
+  final Set<int> _selectedHorseIds = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedClient = widget.client;
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    final clients = await DatabaseService.getClients();
+    if (_selectedClient != null) {
+      _horses = await DatabaseService.getHorsesForClient(_selectedClient!.id!);
+    }
+    if (mounted) {
+      setState(() {
+        _clients = clients;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _onClientChanged(Client? client) async {
+    setState(() {
+      _selectedClient = client;
+      _selectedHorseIds.clear();
+    });
+    if (client != null) {
+      _horses = await DatabaseService.getHorsesForClient(client.id!);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDateTime = DateTime(picked.year, picked.month, picked.day,
+            _selectedDateTime.hour, _selectedDateTime.minute);
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDateTime = DateTime(_selectedDateTime.year,
+            _selectedDateTime.month, _selectedDateTime.day, picked.hour, picked.minute);
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    if (_selectedClient == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a client')),
+      );
+      return;
+    }
+
+    final visit = Visit(
+      clientId: _selectedClient!.id!,
+      clientName: _selectedClient!.fullName,
+      dateTime: _selectedDateTime,
+      notes: _notesCtrl.text.trim(),
+      paid: false,
+    );
+
+    final visitId = await DatabaseService.insertVisit(
+      visit,
+      _selectedHorseIds.toList(),
+    );
+
+    try {
+  final event = Event(
+    title: 'Farrier - ${_selectedClient!.fullName}',
+    description: _notesCtrl.text.trim().isEmpty
+        ? 'Farrier visit'
+        : _notesCtrl.text.trim(),
+    location: _selectedClient!.address,
+    startDate: _selectedDateTime,
+    endDate: _selectedDateTime.add(const Duration(hours: 1)),
+  );
+
+  await Add2Calendar.addEvent2Cal(event);
+} catch (e) {
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Calendar event was not added: $e')),
+  );
+}
+
+    if (mounted) {
+      final created = await DatabaseService.getVisit(visitId);
+      if (created != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => VisitDetailScreen(visit: created)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('New Visit')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('New Visit')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (widget.client == null)
+            DropdownButtonFormField<Client>(
+              value: _selectedClient,
+              decoration: const InputDecoration(labelText: 'Client'),
+              isExpanded: true,
+              items: _clients.map((c) {
+                return DropdownMenuItem<Client>(
+                  value: c,
+                  child: Text(c.fullName),
+                );
+              }).toList(),
+              onChanged: _onClientChanged,
+              validator: (v) => v == null ? 'Please select a client' : null,
+            )
+          else
+            ListTile(
+              leading: ClientAvatar(client: _selectedClient!),
+              title: Text(_selectedClient!.fullName),
+              subtitle: Text(_selectedClient!.address),
+            ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.calendar_today),
+            title: const Text('Date'),
+            subtitle: Text(AppUtils.formatDate(_selectedDateTime)),
+            onTap: _pickDate,
+          ),
+          ListTile(
+            leading: const Icon(Icons.access_time),
+            title: const Text('Time'),
+            subtitle: Text(AppUtils.formatTime(_selectedDateTime)),
+            onTap: _pickTime,
+          ),
+          const SizedBox(height: 8),
+          if (_selectedClient != null) ...[
+            Text('Select Horses', style: Theme.of(context).textTheme.titleMedium),
+            if (_horses.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: Text('No horses for this client'),
+              )
+            else
+              ..._horses.map((h) => CheckboxListTile(
+                    value: _selectedHorseIds.contains(h.id),
+                    title: Text(h.name),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked == true) {
+                          _selectedHorseIds.add(h.id!);
+                        } else {
+                          _selectedHorseIds.remove(h.id!);
+                        }
+                      });
+                    },
+                  )),
+          ],
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _notesCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Visit Notes',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _save,
+            icon: const Icon(Icons.save),
+            label: const Text('Save Visit'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== VISIT DETAIL SCREEN ====================
+
+class VisitDetailScreen extends StatefulWidget {
+  final Visit visit;
+  const VisitDetailScreen({super.key, required this.visit});
+
+  @override
+  State<VisitDetailScreen> createState() => _VisitDetailScreenState();
+}
+
+class _VisitDetailScreenState extends State<VisitDetailScreen> {
+  late Visit _visit;
+  List<Horse> _horses = [];
+  List<ServiceLine> _serviceLines = [];
+  List<VisitPhoto> _photos = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _visit = widget.visit;
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final visit = await DatabaseService.getVisit(_visit.id!);
+    final horses = await DatabaseService.getHorsesForVisit(_visit.id!);
+    final serviceLines = await DatabaseService.getServiceLines(_visit.id!);
+    final photos = await DatabaseService.getPhotos(_visit.id!);
+    if (mounted) {
+      setState(() {
+        if (visit != null) _visit = visit;
+        _horses = horses;
+        _serviceLines = serviceLines;
+        _photos = photos;
+        _loading = false;
+      });
+    }
+  }
+
+  double get _total => _serviceLines.fold(0.0, (sum, line) => sum + line.price);
+
+  Future<void> _togglePaid(bool value) async {
+    await DatabaseService.setVisitPaid(_visit.id!, value);
+    setState(() {
+      _visit = Visit(
+        id: _visit.id,
+        clientId: _visit.clientId,
+        clientName: _visit.clientName,
+        dateTime: _visit.dateTime,
+        notes: _visit.notes,
+        paid: value,
+      );
+    });
+  }
+
+  Future<void> _addServiceLine() async {
+    final result = await showDialog<ServiceLine>(
+      context: context,
+      builder: (_) => ServiceLineDialog(
+        visitId: _visit.id!,
+        horses: _horses,
+      ),
+    );
+    if (result != null) {
+      await DatabaseService.insertServiceLine(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _editServiceLine(ServiceLine line) async {
+    final result = await showDialog<ServiceLine>(
+      context: context,
+      builder: (_) => ServiceLineDialog(
+        visitId: _visit.id!,
+        horses: _horses,
+        serviceLine: line,
+      ),
+    );
+    if (result != null) {
+      await DatabaseService.updateServiceLine(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _deleteServiceLine(ServiceLine line) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Service Line',
+      message: 'Remove "${line.description}"?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteServiceLine(line.id!);
+      _loadData();
+    }
+  }
+
+  Future<void> _addPhoto() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.camera);
+    if (image == null) return;
+
+    final captionCtrl = TextEditingController();
+    final includeOnInvoice = ValueNotifier<bool>(true);
+    int? horseId;
+
+    if (mounted) {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Photo Details'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.file(File(image.path), height: 150, fit: BoxFit.cover),
+                  const SizedBox(height: 12),
+                  if (_horses.isNotEmpty)
+                    DropdownButtonFormField<int?>(
+                      value: horseId,
+                      decoration: const InputDecoration(labelText: 'Horse'),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('None')),
+                        ..._horses.map((h) => DropdownMenuItem(
+                              value: h.id,
+                              child: Text(h.name),
+                            )),
+                      ],
+                      onChanged: (v) => setDialogState(() => horseId = v),
+                    ),
+                  TextField(
+                    controller: captionCtrl,
+                    decoration: const InputDecoration(labelText: 'Caption'),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: includeOnInvoice,
+                    builder: (context, value, child) => SwitchListTile(
+                      title: const Text('Include on invoice'),
+                      value: value,
+                      onChanged: (v) => includeOnInvoice.value = v,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (saved == true) {
+        await DatabaseService.insertPhoto(VisitPhoto(
+          visitId: _visit.id!,
+          horseId: horseId,
+          path: image.path,
+          caption: captionCtrl.text.trim(),
+          includeOnInvoice: includeOnInvoice.value,
+        ));
+        _loadData();
+      }
+      captionCtrl.dispose();
+    }
+  }
+
+  Future<void> _deletePhoto(VisitPhoto photo) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Photo',
+      message: 'Remove this photo?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deletePhoto(photo.id!);
+      _loadData();
+    }
+  }
+
+  Future<void> _generateInvoice() async {
+  final client = await DatabaseService.getClient(_visit.clientId);
+  if (client == null) return;
+
+  try {
+    final file = await InvoiceService.generateInvoice(
+      visit: _visit,
+      client: client,
+      serviceLines: _serviceLines,
+      photos: _photos,
+    );
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share Invoice (PDF)'),
+              subtitle: const Text(
+                  'Send via any app - Gmail, WhatsApp, etc.'),
+              onTap: () {
+                Navigator.pop(context);
+                InvoiceService.shareInvoice(
+                  file,
+                  subject: 'Invoice for ${client.fullName}',
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.print),
+              title: const Text('Print Invoice'),
+              onTap: () {
+                Navigator.pop(context);
+                InvoiceService.printInvoice(file);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error generating invoice: $e')),
+    );
+  }
+}
+
+  Future<void> _deleteVisit() async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Visit',
+      message: 'Are you sure you want to delete this visit?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteVisit(_visit.id!);
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  void _showPhotoFullScreen(VisitPhoto photo) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(photo.caption.isNotEmpty ? photo.caption : 'Photo'),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.file(File(photo.path)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Visit')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_visit.clientName),
+        actions: [
+          if (_serviceLines.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.receipt_long),
+              tooltip: 'Generate Invoice',
+              onPressed: _generateInvoice,
+            ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'delete') _deleteVisit();
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete Visit', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            AppUtils.formatDateTimeForInvoice(_visit.dateTime),
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        VisitStatusChip(visit: _visit),
+                      ],
+                    ),
+                    if (_visit.notes.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(_visit.notes),
+                    ],
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Paid'),
+                      value: _visit.paid,
+                      onChanged: _togglePaid,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SectionHeader(title: 'Horses (${_horses.length})'),
+            if (_horses.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No horses selected for this visit'),
+              )
+            else
+              ..._horses.map((h) => ListTile(
+                    leading: HorseAvatar(horse: h, radius: 20),
+                    title: Text(h.name),
+                  )),
+            const SizedBox(height: 16),
+            SectionHeader(
+              title: 'Billing',
+              onAdd: _addServiceLine,
+              addLabel: 'Add Line',
+            ),
+            if (_serviceLines.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No service lines yet'),
+              )
+            else ...[
+              ..._serviceLines.map((line) => ServiceLineCard(
+                    line: line,
+                    onEdit: () => _editServiceLine(line),
+                    onDelete: () => _deleteServiceLine(line),
+                  )),
+              const Divider(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Total',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            )),
+                    Text(
+                      AppUtils.formatCurrency(_total),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: _visit.paid ? Colors.green : Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!_visit.paid)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    onPressed: _generateInvoice,
+                    icon: const Icon(Icons.receipt_long),
+                    label: const Text('Generate Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 16),
+            SectionHeader(
+              title: 'Photos (${_photos.length})',
+              onAdd: _addPhoto,
+              addLabel: 'Add Photo',
+            ),
+            if (_photos.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No photos yet'),
+              )
+            else
+              PhotoGrid(
+                photos: _photos,
+                onTap: (photo) => _showPhotoFullScreen(photo),
+                onLongPress: (photo) => _deletePhoto(photo),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== SERVICE LINE DIALOG ====================
+
+class ServiceLineDialog extends StatefulWidget {
+  final int visitId;
+  final List<Horse> horses;
+  final ServiceLine? serviceLine;
+
+  const ServiceLineDialog({
+    super.key,
+    required this.visitId,
+    required this.horses,
+    this.serviceLine,
+  });
+
+  @override
+  State<ServiceLineDialog> createState() => _ServiceLineDialogState();
+}
+
+class _ServiceLineDialogState extends State<ServiceLineDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _priceCtrl;
+  int? _selectedHorseId;
+
+  bool get isEditing => widget.serviceLine != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _descCtrl = TextEditingController(text: widget.serviceLine?.description ?? '');
+    _priceCtrl = TextEditingController(
+      text: widget.serviceLine != null ? widget.serviceLine!.price.toString() : '',
+    );
+    _selectedHorseId = widget.serviceLine?.horseId;
+  }
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    _priceCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(isEditing ? 'Edit Service Line' : 'Add Service Line'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.horses.isNotEmpty)
+              DropdownButtonFormField<int?>(
+                value: _selectedHorseId,
+                decoration: const InputDecoration(labelText: 'Horse'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('General')),
+                  ...widget.horses.map((h) =>
+                      DropdownMenuItem(value: h.id, child: Text(h.name))),
+                ],
+                onChanged: (v) => _selectedHorseId = v,
+              ),
+            TextFormField(
+              controller: _descCtrl,
+              decoration: const InputDecoration(labelText: 'Description'),
+              validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+            ),
+            TextFormField(
+              controller: _priceCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Price',
+                prefixText: '\$',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                if (double.tryParse(v) == null) return 'Invalid number';
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(
+                context,
+                ServiceLine(
+                  id: widget.serviceLine?.id,
+                  visitId: widget.visitId,
+                  horseId: _selectedHorseId,
+                  horseName: _selectedHorseId != null
+                      ? widget.horses
+                          .firstWhere((h) => h.id == _selectedHorseId)
+                          .name
+                      : 'General',
+                  description: _descCtrl.text.trim(),
+                  price: double.parse(_priceCtrl.text.trim()),
+                ),
+              );
+            }
+          },
+          child: Text(isEditing ? 'Update' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
+// ==================== CALENDAR SCREEN ====================
+
+class CalendarScreen extends StatefulWidget {
+  const CalendarScreen({super.key});
+
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  Map<DateTime, List<Visit>> _visitsByDay = {};
+  List<Visit> _selectedVisits = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = DateTime.now();
+    _loadVisits();
+  }
+
+  Future<void> _loadVisits() async {
+    final visits = await DatabaseService.getVisits();
+    final map = <DateTime, List<Visit>>{};
+    for (final visit in visits) {
+      final day = DateTime(visit.dateTime.year, visit.dateTime.month, visit.dateTime.day);
+      map.putIfAbsent(day, () => []).add(visit);
+    }
+    if (mounted) {
+      setState(() {
+        _visitsByDay = map;
+        _selectedVisits = _getVisitsForDay(_selectedDay!);
+        _loading = false;
+      });
+    }
+  }
+
+  List<Visit> _getVisitsForDay(DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    return _visitsByDay[normalized] ?? [];
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    setState(() {
+      _selectedDay = selectedDay;
+      _focusedDay = focusedDay;
+      _selectedVisits = _getVisitsForDay(selectedDay);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Calendar')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Calendar')),
+      body: Column(
+        children: [
+          TableCalendar<Visit>(
+            firstDay: DateTime(2020),
+            lastDay: DateTime(2035),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: _onDaySelected,
+            onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+            eventLoader: (day) => _getVisitsForDay(day),
+            calendarStyle: CalendarStyle(
+              markerDecoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: _selectedVisits.isEmpty
+                ? Center(
+                    child: Text(
+                      'No visits on ${AppUtils.formatDate(_selectedDay!)}',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _selectedVisits.length,
+                    itemBuilder: (_, i) {
+                      final visit = _selectedVisits[i];
+                      return _VisitListTile(
+                        visit: visit,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VisitDetailScreen(visit: visit),
+                            ),
+                          );
+                          _loadVisits();
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==================== SHARED WIDGET ====================
+
+class _VisitListTile extends StatelessWidget {
+  final Visit visit;
+  final VoidCallback onTap;
+
+  const _VisitListTile({required this.visit, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: visit.paid
+              ? Colors.green.shade100
+              : visit.isPast
+                  ? Colors.red.shade100
+                  : Colors.orange.shade100,
+          child: Icon(
+            visit.paid
+                ? Icons.check_circle
+                : visit.isPast
+                    ? Icons.warning
+                    : Icons.event,
+            color: visit.paid
+                ? Colors.green
+                : visit.isPast
+                    ? Colors.red
+                    : Colors.orange,
+          ),
+        ),
+        title: Text(visit.clientName),
+        subtitle: Text(
+          '${AppUtils.formatDateTime(visit.dateTime)}${visit.notes.isNotEmpty ? ' - ${visit.notes}' : ''}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+}
