@@ -218,12 +218,23 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               subtitle: const Text(
                   'Send via any app - Gmail, WhatsApp, etc.'),
               onTap: () {
-                Navigator.pop(context);
-                InvoiceService.shareInvoice(
-                  file,
-                  subject: 'Invoice for ${client.fullName}',
-                );
-              },
+  Navigator.pop(context);
+
+  final safeClientName = client.fullName
+      .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+
+  final date = _visit.dateTime.toIso8601String().split('T').first;
+  final docType = _visit.paid ? 'Receipt' : 'Invoice';
+  final fileName = '${safeClientName}_${date}_$docType.pdf';
+
+  InvoiceService.shareInvoice(
+    file,
+    subject: '$docType for ${client.fullName}',
+    fileName: fileName,
+  );
+},
             ),
             ListTile(
               leading: const Icon(Icons.print),

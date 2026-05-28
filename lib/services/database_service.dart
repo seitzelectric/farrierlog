@@ -6,7 +6,7 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
 
  static Future<Database> get database async {
   if (_db != null) return _db!;
@@ -21,6 +21,14 @@ class DatabaseService {
     },
     onCreate: _onCreate,
     onUpgrade: _onUpgrade,
+onOpen: (db) async {
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS app_settings(
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT ''
+    )
+  ''');
+},
   );
 
   return _db!;
@@ -371,12 +379,16 @@ class DatabaseService {
   static Future<List<ServiceLine>> getServiceLines(int visitId) async {
     final db = await database;
     final rows = await db.rawQuery('''
-      SELECT service_lines.*, COALESCE(horses.name, 'General') AS horse_name
-      FROM service_lines
-      LEFT JOIN horses ON horses.id = service_lines.horse_id
-      WHERE service_lines.visit_id = ?
-      ORDER BY service_lines.id
-    ''', [visitId]);
+  SELECT 
+    service_lines.*, 
+    COALESCE(horses.name, 'General') AS horse_name,
+    COALESCE(horses.breed, '') AS horse_breed,
+    COALESCE(horses.color, '') AS horse_color
+  FROM service_lines
+  LEFT JOIN horses ON horses.id = service_lines.horse_id
+  WHERE service_lines.visit_id = ?
+  ORDER BY service_lines.id
+''', [visitId]);
     return rows.map((r) => ServiceLine.fromMap(r)).toList();
   }
 

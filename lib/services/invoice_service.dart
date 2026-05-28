@@ -148,18 +148,26 @@ await loadCompanyInfo();
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                 children: [
-                  _tableCell('Horse', bold: true),
-                  _tableCell('Description', bold: true),
-                  _tableCell('Price', bold: true, align: pw.TextAlign.right),
+                 _tableCell('Name', bold: true),
+_tableCell('Description', bold: true),
+_tableCell('Service', bold: true),
+_tableCell('Price', bold: true, align: pw.TextAlign.right),
                 ],
               ),
               ...serviceLines.map((line) => pw.TableRow(
                     children: [
-                      _tableCell(line.horseName),
-                      _tableCell(line.description),
-                      _tableCell(AppUtils.formatCurrency(line.price),
-                          align: pw.TextAlign.right),
-                    ],
+  _tableCell(line.horseName),
+  _tableCell(
+  '${line.horseBreed.isNotEmpty ? line.horseBreed : ''}'
+  '${line.horseBreed.isNotEmpty && line.horseColor.isNotEmpty ? ' / ' : ''}'
+  '${line.horseColor.isNotEmpty ? line.horseColor : ''}',
+),
+  _tableCell(line.description),
+  _tableCell(
+    AppUtils.formatCurrency(line.price),
+    align: pw.TextAlign.right,
+  ),
+],
                   )),
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -238,7 +246,15 @@ await loadCompanyInfo();
     );
 
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/invoice_visit_${visit.id}.pdf');
+    final safeClientName = client.fullName
+    .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
+    .replaceAll(RegExp(r'_+'), '_')
+    .replaceAll(RegExp(r'^_|_$'), '');
+
+final date = visit.dateTime.toIso8601String().split('T').first;
+final docType = visit.paid ? 'Receipt' : 'Invoice';
+
+final file = File('${output.path}/${safeClientName}_${date}_$docType.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
@@ -290,17 +306,24 @@ await loadCompanyInfo();
             textAlign: align),
       );
 
-  static Future<void> shareInvoice(File file, {String? subject}) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: subject,
-      text: subject ?? 'Farrier Invoice',
-    );
-  }
-
+  static Future<void> shareInvoice(
+  File file, {
+  String? subject,
+  String? fileName,
+}) async {
+  await Share.shareXFiles(
+    [XFile(file.path)],
+    subject: subject,
+    text: subject ?? 'Farrier Invoice',
+  );
+}
   static Future<void> printInvoice(File file) async {
-    await Printing.layoutPdf(
-      onLayout: (_) async => await file.readAsBytes(),
-    );
-  }
+  final documentName =
+      file.path.split('/').last.replaceAll('.pdf', '');
+
+  await Printing.layoutPdf(
+    name: documentName,
+    onLayout: (_) async => await file.readAsBytes(),
+  );
+}
 }

@@ -184,6 +184,8 @@ class ServiceLine {
   final int visitId;
   final int? horseId;
   final String horseName;
+  final String horseBreed;
+  final String horseColor;
   final String description;
   final double price;
   final DateTime createdAt;
@@ -193,6 +195,8 @@ class ServiceLine {
     required this.visitId,
     this.horseId,
     required this.horseName,
+    this.horseBreed = '',
+this.horseColor = '',
     required this.description,
     required this.price,
     DateTime? createdAt,
@@ -212,6 +216,8 @@ class ServiceLine {
         visitId: map['visit_id'] as int,
         horseId: map['horse_id'] as int?,
         horseName: (map['horse_name'] as String?) ?? 'General',
+        horseBreed: (map['horse_breed'] as String?) ?? '',
+        horseColor: (map['horse_color'] as String?) ?? '',
         description: (map['description'] as String?) ?? '',
         price: (map['price'] as num).toDouble(),
         createdAt: map['created_at'] != null

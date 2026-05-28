@@ -344,16 +344,16 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Horse Name'),
+                decoration: const InputDecoration(labelText: 'Name'),
                 validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
               ),
               TextFormField(
                 controller: _breedCtrl,
-                decoration: const InputDecoration(labelText: 'Breed'),
+                decoration: const InputDecoration(labelText: 'Species'),
               ),
               TextFormField(
                 controller: _colorCtrl,
-                decoration: const InputDecoration(labelText: 'Color'),
+                decoration: const InputDecoration(labelText: 'Service'),
               ),
               TextFormField(
                 controller: _notesCtrl,
@@ -457,7 +457,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
               ),
             TextFormField(
               controller: _descCtrl,
-              decoration: const InputDecoration(labelText: 'Description'),
+              decoration: const InputDecoration(labelText: 'Service'),
               validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
             ),
             TextFormField(

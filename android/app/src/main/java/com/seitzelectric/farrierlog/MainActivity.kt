@@ -1,4 +1,4 @@
-package com.seitzelectric.farrier_log
+package com.seitzelectric.farrierlog
 
 import io.flutter.embedding.android.FlutterActivity
 
