@@ -174,6 +174,7 @@ _tableCell('Price', bold: true, align: pw.TextAlign.right),
                 children: [
                   _tableCell('Total', bold: true),
                   _tableCell(''),
+                  _tableCell(''),
                   _tableCell(AppUtils.formatCurrency(total),
                       bold: true, align: pw.TextAlign.right),
                 ],

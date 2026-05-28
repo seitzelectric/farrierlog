@@ -130,15 +130,13 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   );
 }
 
-    if (mounted) {
-      final created = await DatabaseService.getVisit(visitId);
-      if (created != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => VisitDetailScreen(visit: created)),
-        );
-      }
-    }
+    final created = await DatabaseService.getVisit(visitId);
+    if (!mounted || created == null) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => VisitDetailScreen(visit: created)),
+    );
   }
 
   @override
@@ -234,4 +232,3 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     );
   }
 }
-
