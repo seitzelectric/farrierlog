@@ -8,10 +8,21 @@ class DatabaseService {
   static const String _dbName = 'farrier_log_v2.db';
   static const int _dbVersion = 6;
 
+  static String get databaseName => _dbName;
+  static int get databaseVersion => _dbVersion;
+
+  static Future<String> get databasePath async =>
+      p.join(await getDatabasesPath(), _dbName);
+
+  static Future<void> close() async {
+    await _db?.close();
+    _db = null;
+  }
+
   static Future<Database> get database async {
     if (_db != null) return _db!;
 
-    final path = p.join(await getDatabasesPath(), _dbName);
+    final path = await databasePath;
 
     _db = await openDatabase(
       path,
