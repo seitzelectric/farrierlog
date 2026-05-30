@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
@@ -192,10 +194,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       );
 
       if (saved == true) {
+        final durablePath = await _copyPhotoToDocuments(image);
         await DatabaseService.insertPhoto(VisitPhoto(
           visitId: _visit.id!,
           horseId: horseId,
-          path: image.path,
+          path: durablePath,
           caption: captionCtrl.text.trim(),
           includeOnInvoice: includeOnInvoice.value,
         ));
@@ -203,6 +206,35 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       }
       captionCtrl.dispose();
     }
+  }
+
+  Future<String> _copyPhotoToDocuments(XFile image) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final photosDir = Directory(p.join(documents.path, 'photos'));
+    await photosDir.create(recursive: true);
+
+    final extension = _safePhotoExtension(image.path);
+    final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch;
+    var candidate = File(p.join(photosDir.path, 'photo_$timestamp$extension'));
+    var counter = 1;
+
+    while (await candidate.exists()) {
+      candidate = File(
+        p.join(photosDir.path, 'photo_${timestamp}_$counter$extension'),
+      );
+      counter++;
+    }
+
+    final copied = await File(image.path).copy(candidate.path);
+    return copied.path;
+  }
+
+  String _safePhotoExtension(String sourcePath) {
+    final extension = p.extension(sourcePath).toLowerCase();
+    if (RegExp(r'^\.[a-z0-9]{1,8}$').hasMatch(extension)) {
+      return extension;
+    }
+    return '.jpg';
   }
 
   Future<void> _deletePhoto(VisitPhoto photo) async {

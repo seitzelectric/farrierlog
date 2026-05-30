@@ -54,13 +54,16 @@ class Client {
         email: (map['email'] as String?) ?? '',
         address: (map['address'] as String?) ?? '',
         notes: (map['notes'] as String?) ?? '',
-        createdAt: map['created_at'] != null
-            ? DateTime.parse(map['created_at'] as String)
-            : null,
-        updatedAt: map['updated_at'] != null
-            ? DateTime.parse(map['updated_at'] as String)
-            : null,
+        createdAt: _parseOptionalDateTime(map['created_at']),
+        updatedAt: _parseOptionalDateTime(map['updated_at']),
       );
+
+  static DateTime? _parseOptionalDateTime(Object? value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return DateTime.parse(text);
+  }
 
   Client copyWith({
     int? id,
