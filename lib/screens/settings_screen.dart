@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/export_service.dart';
 import '../services/invoice_service.dart';
 import '../services/database_service.dart';
 
@@ -17,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   String? _logoPath;
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -109,6 +111,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   );
 }
 
+  Future<void> _exportData() async {
+    setState(() => _exporting = true);
+
+    try {
+      final file = await ExportService.exportCsvZip();
+      await ExportService.shareCsvZip(file);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _exporting = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -168,6 +188,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: const Icon(Icons.save),
             label: const Text('Save Settings'),
             style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _exporting ? null : _exportData,
+            icon: _exporting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.ios_share),
+            label: Text(_exporting ? 'Exporting...' : 'Export Data'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
           ),
         ],
       ),
