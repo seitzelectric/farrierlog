@@ -6,33 +6,33 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
- static Future<Database> get database async {
-  if (_db != null) return _db!;
+  static Future<Database> get database async {
+    if (_db != null) return _db!;
 
-  final path = p.join(await getDatabasesPath(), _dbName);
+    final path = p.join(await getDatabasesPath(), _dbName);
 
-  _db = await openDatabase(
-    path,
-    version: _dbVersion,
-    onConfigure: (db) async {
-      await db.execute('PRAGMA foreign_keys = ON');
-    },
-    onCreate: _onCreate,
-    onUpgrade: _onUpgrade,
-onOpen: (db) async {
-  await db.execute('''
+    _db = await openDatabase(
+      path,
+      version: _dbVersion,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+      onOpen: (db) async {
+        await db.execute('''
     CREATE TABLE IF NOT EXISTS app_settings(
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT ''
     )
   ''');
-},
-  );
+      },
+    );
 
-  return _db!;
-}
+    return _db!;
+  }
 
   static Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
@@ -111,44 +111,82 @@ onOpen: (db) async {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE invoices(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        visit_id INTEGER NOT NULL UNIQUE,
+        invoice_number TEXT NOT NULL UNIQUE,
+        issued_at TEXT NOT NULL,
+        paid_at TEXT,
+        total REAL NOT NULL DEFAULT 0,
+        file_path TEXT NOT NULL DEFAULT '',
+        file_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+      )
+    ''');
+
     // Create indexes for performance
-    await db.execute(
-        'CREATE INDEX idx_horses_client ON horses(client_id)');
-    await db.execute(
-        'CREATE INDEX idx_visits_client ON visits(client_id)');
-    await db.execute(
-        'CREATE INDEX idx_visits_datetime ON visits(datetime)');
+    await db.execute('CREATE INDEX idx_horses_client ON horses(client_id)');
+    await db.execute('CREATE INDEX idx_visits_client ON visits(client_id)');
+    await db.execute('CREATE INDEX idx_visits_datetime ON visits(datetime)');
     await db.execute(
         'CREATE INDEX idx_service_lines_visit ON service_lines(visit_id)');
     await db.execute(
         'CREATE INDEX idx_visit_photos_visit ON visit_photos(visit_id)');
+    await db.execute('CREATE INDEX idx_invoices_visit ON invoices(visit_id)');
+    await db
+        .execute('CREATE INDEX idx_invoices_issued_at ON invoices(issued_at)');
   }
 
   static Future<void> _onUpgrade(
     Database db,
     int oldVersion,
     int newVersion,
-) async {
-  if (oldVersion < 2) {
-    await db.execute(
-        "ALTER TABLE horses ADD COLUMN breed TEXT NOT NULL DEFAULT ''");
-    await db.execute(
-        "ALTER TABLE horses ADD COLUMN color TEXT NOT NULL DEFAULT ''");
-    await db.execute(
-        "ALTER TABLE clients ADD COLUMN created_at TEXT NOT NULL DEFAULT ''");
-    await db.execute(
-        "ALTER TABLE clients ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''");
-  }
+  ) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          "ALTER TABLE horses ADD COLUMN breed TEXT NOT NULL DEFAULT ''");
+      await db.execute(
+          "ALTER TABLE horses ADD COLUMN color TEXT NOT NULL DEFAULT ''");
+      await db.execute(
+          "ALTER TABLE clients ADD COLUMN created_at TEXT NOT NULL DEFAULT ''");
+      await db.execute(
+          "ALTER TABLE clients ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''");
+    }
 
-  if (oldVersion < 3) {
-    await db.execute('''
+    if (oldVersion < 3) {
+      await db.execute('''
       CREATE TABLE IF NOT EXISTS app_settings(
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL DEFAULT ''
       )
     ''');
+    }
+
+    if (oldVersion < 5) {
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS invoices(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        visit_id INTEGER NOT NULL UNIQUE,
+        invoice_number TEXT NOT NULL UNIQUE,
+        issued_at TEXT NOT NULL,
+        paid_at TEXT,
+        total REAL NOT NULL DEFAULT 0,
+        file_path TEXT NOT NULL DEFAULT '',
+        file_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+      )
+    ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_invoices_visit ON invoices(visit_id)');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_invoices_issued_at ON invoices(issued_at)');
+    }
   }
-}
 
   // ==================== CLIENT OPERATIONS ====================
 
@@ -184,7 +222,8 @@ onOpen: (db) async {
     List<dynamic>? whereArgs;
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      where = 'first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ? OR address LIKE ?';
+      where =
+          'first_name LIKE ? OR last_name LIKE ? OR phone LIKE ? OR email LIKE ? OR address LIKE ?';
       final query = '%$searchQuery%';
       whereArgs = [query, query, query, query, query];
     }
@@ -273,7 +312,8 @@ onOpen: (db) async {
       whereArgs: [visit.id],
     );
     // Update horse associations
-    await db.delete('visit_horses', where: 'visit_id = ?', whereArgs: [visit.id]);
+    await db
+        .delete('visit_horses', where: 'visit_id = ?', whereArgs: [visit.id]);
     for (final horseId in horseIds) {
       await db.insert('visit_horses', {
         'visit_id': visit.id,
@@ -308,7 +348,8 @@ onOpen: (db) async {
       args.add(to.toIso8601String());
     }
 
-    final where = conditions.isNotEmpty ? 'WHERE ${conditions.join(' AND ')}' : '';
+    final where =
+        conditions.isNotEmpty ? 'WHERE ${conditions.join(' AND ')}' : '';
 
     final rows = await db.rawQuery('''
       SELECT visits.*, clients.first_name, clients.last_name
@@ -411,7 +452,8 @@ onOpen: (db) async {
 
   static Future<int> deletePhoto(int id) async {
     final db = await database;
-    final photos = await db.query('visit_photos', where: 'id = ?', whereArgs: [id]);
+    final photos =
+        await db.query('visit_photos', where: 'id = ?', whereArgs: [id]);
     if (photos.isNotEmpty) {
       final file = File(photos.first['path'] as String);
       if (await file.exists()) await file.delete();
@@ -442,50 +484,143 @@ onOpen: (db) async {
 
 // ==================== APP SETTINGS ====================
 
-static Future<void> setSetting(String key, String value) async {
-  final db = await database;
+  static Future<void> setSetting(String key, String value) async {
+    final db = await database;
 
-  await db.insert(
-    'app_settings',
-    {'key': key, 'value': value},
-    conflictAlgorithm: ConflictAlgorithm.replace,
-  );
-}
+    await db.insert(
+      'app_settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 
-static Future<String> getSetting(
-  String key, {
-  String defaultValue = '',
-}) async {
-  final db = await database;
+  static Future<String> getSetting(
+    String key, {
+    String defaultValue = '',
+  }) async {
+    final db = await database;
 
-  final rows = await db.query(
-    'app_settings',
-    where: 'key = ?',
-    whereArgs: [key],
-    limit: 1,
-  );
+    final rows = await db.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
 
-  if (rows.isEmpty) return defaultValue;
+    if (rows.isEmpty) return defaultValue;
 
-  return rows.first['value'] as String? ?? defaultValue;
-}
+    return rows.first['value'] as String? ?? defaultValue;
+  }
+
+  // ==================== INVOICE OPERATIONS ====================
+
+  static Future<String> getNextInvoiceNumber(DateTime issuedAt) async {
+    final db = await database;
+    final year = issuedAt.year;
+    final key = 'invoice_sequence_$year';
+
+    return await db.transaction((txn) async {
+      final rows = await txn.query(
+        'app_settings',
+        where: 'key = ?',
+        whereArgs: [key],
+        limit: 1,
+      );
+
+      final current = rows.isEmpty
+          ? 0
+          : int.tryParse((rows.first['value'] as String?) ?? '') ?? 0;
+      final next = current + 1;
+
+      await txn.insert(
+        'app_settings',
+        {'key': key, 'value': next.toString()},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      return 'INV-$year-${next.toString().padLeft(4, '0')}';
+    });
+  }
+
+  static Future<int> insertInvoice(InvoiceRecord invoice) async {
+    final db = await database;
+    return await db.insert('invoices', invoice.toMap());
+  }
+
+  static Future<int> updateInvoice(InvoiceRecord invoice) async {
+    final db = await database;
+    return await db.update(
+      'invoices',
+      invoice.toMap(),
+      where: 'id = ?',
+      whereArgs: [invoice.id],
+    );
+  }
+
+  static Future<List<InvoiceRecord>> getInvoicesForVisit(int visitId) async {
+    final db = await database;
+    final rows = await db.query(
+      'invoices',
+      where: 'visit_id = ?',
+      whereArgs: [visitId],
+      orderBy: 'issued_at DESC',
+    );
+    return rows.map((r) => InvoiceRecord.fromMap(r)).toList();
+  }
+
+  static Future<List<InvoiceRecord>> getInvoices() async {
+    final db = await database;
+    final rows = await db.query('invoices', orderBy: 'issued_at DESC');
+    return rows.map((r) => InvoiceRecord.fromMap(r)).toList();
+  }
+
+  static Future<InvoiceRecord?> getInvoice(int id) async {
+    final db = await database;
+    final rows = await db.query(
+      'invoices',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return InvoiceRecord.fromMap(rows.first);
+  }
+
+  static Future<void> setInvoicesPaidForVisit(
+    int visitId,
+    bool paid,
+  ) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    await db.update(
+      'invoices',
+      {
+        'paid_at': paid ? now : null,
+        'updated_at': now,
+      },
+      where: 'visit_id = ?',
+      whereArgs: [visitId],
+    );
+  }
 
   // ==================== STATISTICS ====================
 
   static Future<Map<String, dynamic>> getStats() async {
     final db = await database;
     final totalClients = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM clients')) ?? 0;
+            await db.rawQuery('SELECT COUNT(*) FROM clients')) ??
+        0;
     final totalHorses = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM horses')) ?? 0;
-    final upcomingVisits = Sqflite.firstIntValue(
-        await db.rawQuery(
+            await db.rawQuery('SELECT COUNT(*) FROM horses')) ??
+        0;
+    final upcomingVisits = Sqflite.firstIntValue(await db.rawQuery(
             "SELECT COUNT(*) FROM visits WHERE datetime >= ? AND paid = 0",
-            [DateTime.now().toIso8601String()])) ?? 0;
-    final unpaidVisits = Sqflite.firstIntValue(
-        await db.rawQuery(
+            [DateTime.now().toIso8601String()])) ??
+        0;
+    final unpaidVisits = Sqflite.firstIntValue(await db.rawQuery(
             "SELECT COUNT(*) FROM visits WHERE paid = 0 AND datetime < ?",
-            [DateTime.now().toIso8601String()])) ?? 0;
+            [DateTime.now().toIso8601String()])) ??
+        0;
 
     final revenueResult = await db.rawQuery('''
       SELECT COALESCE(SUM(sl.price), 0) as total
@@ -493,7 +628,8 @@ static Future<String> getSetting(
       INNER JOIN visits v ON v.id = sl.visit_id
       WHERE v.paid = 1
     ''');
-    final totalRevenue = (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final totalRevenue =
+        (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     final outstandingResult = await db.rawQuery('''
       SELECT COALESCE(SUM(sl.price), 0) as total
@@ -501,7 +637,8 @@ static Future<String> getSetting(
       INNER JOIN visits v ON v.id = sl.visit_id
       WHERE v.paid = 0
     ''');
-    final outstandingRevenue = (outstandingResult.first['total'] as num?)?.toDouble() ?? 0.0;
+    final outstandingRevenue =
+        (outstandingResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     return {
       'totalClients': totalClients,

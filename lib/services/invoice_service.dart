@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path/path.dart' as p;
 import '../models/models.dart';
 import '../utils/utils.dart';
 import 'database_service.dart';
@@ -47,19 +48,19 @@ class InvoiceService {
 
   static CompanyInfo get companyInfo => _companyInfo;
 
-static Future<void> loadCompanyInfo() async {
-  _companyInfo = CompanyInfo(
-    name: await DatabaseService.getSetting('company_name'),
-    address: await DatabaseService.getSetting('company_address'),
-    phone: await DatabaseService.getSetting('company_phone'),
-    email: await DatabaseService.getSetting('company_email'),
-    logoPath: await DatabaseService.getSetting('company_logo'),
-  );
+  static Future<void> loadCompanyInfo() async {
+    _companyInfo = CompanyInfo(
+      name: await DatabaseService.getSetting('company_name'),
+      address: await DatabaseService.getSetting('company_address'),
+      phone: await DatabaseService.getSetting('company_phone'),
+      email: await DatabaseService.getSetting('company_email'),
+      logoPath: await DatabaseService.getSetting('company_logo'),
+    );
 
-  if (_companyInfo.logoPath != null && _companyInfo.logoPath!.isEmpty) {
-    _companyInfo.logoPath = null;
+    if (_companyInfo.logoPath != null && _companyInfo.logoPath!.isEmpty) {
+      _companyInfo.logoPath = null;
+    }
   }
-}
 
   static void setCompanyInfo(CompanyInfo info) {
     _companyInfo = info;
@@ -70,8 +71,9 @@ static Future<void> loadCompanyInfo() async {
     required Client client,
     required List<ServiceLine> serviceLines,
     required List<VisitPhoto> photos,
+    String? invoiceNumber,
   }) async {
-await loadCompanyInfo();
+    await loadCompanyInfo();
 
     final pdf = pw.Document();
     final total = serviceLines.fold(0.0, (sum, line) => sum + line.price);
@@ -119,7 +121,8 @@ await loadCompanyInfo();
                     pw.Text('Visit Details:',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.Text(AppUtils.formatDateTimeForInvoice(visit.dateTime)),
-                    if (visit.notes.isNotEmpty) pw.Text('Notes: ${visit.notes}'),
+                    if (visit.notes.isNotEmpty)
+                      pw.Text('Notes: ${visit.notes}'),
                   ],
                 ),
               ),
@@ -130,17 +133,19 @@ await loadCompanyInfo();
           // Invoice Title
           pw.Center(
             child: pw.Text('INVOICE',
-                style: pw.TextStyle(
-                    fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
           ),
           pw.Text('Date: ${AppUtils.formatDate(DateTime.now())}'),
-          pw.Text('Visit #${visit.id}'),
+          pw.Text(invoiceNumber != null
+              ? 'Invoice #$invoiceNumber'
+              : 'Visit #${visit.id}'),
           pw.SizedBox(height: 16),
 
           // Service Lines Table
           pw.Text('Services',
-              style: pw.TextStyle(
-                  fontSize: 14, fontWeight: pw.FontWeight.bold)),
+              style:
+                  pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
           pw.Table(
             border: pw.TableBorder.all(),
@@ -148,26 +153,26 @@ await loadCompanyInfo();
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                 children: [
-                 _tableCell('Name', bold: true),
-_tableCell('Description', bold: true),
-_tableCell('Service', bold: true),
-_tableCell('Price', bold: true, align: pw.TextAlign.right),
+                  _tableCell('Name', bold: true),
+                  _tableCell('Description', bold: true),
+                  _tableCell('Service', bold: true),
+                  _tableCell('Price', bold: true, align: pw.TextAlign.right),
                 ],
               ),
               ...serviceLines.map((line) => pw.TableRow(
                     children: [
-  _tableCell(line.horseName),
-  _tableCell(
-  '${line.horseBreed.isNotEmpty ? line.horseBreed : ''}'
-  '${line.horseBreed.isNotEmpty && line.horseColor.isNotEmpty ? ' / ' : ''}'
-  '${line.horseColor.isNotEmpty ? line.horseColor : ''}',
-),
-  _tableCell(line.description),
-  _tableCell(
-    AppUtils.formatCurrency(line.price),
-    align: pw.TextAlign.right,
-  ),
-],
+                      _tableCell(line.horseName),
+                      _tableCell(
+                        '${line.horseBreed.isNotEmpty ? line.horseBreed : ''}'
+                        '${line.horseBreed.isNotEmpty && line.horseColor.isNotEmpty ? ' / ' : ''}'
+                        '${line.horseColor.isNotEmpty ? line.horseColor : ''}',
+                      ),
+                      _tableCell(line.description),
+                      _tableCell(
+                        AppUtils.formatCurrency(line.price),
+                        align: pw.TextAlign.right,
+                      ),
+                    ],
                   )),
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -208,8 +213,8 @@ _tableCell('Price', bold: true, align: pw.TextAlign.right),
           if (invoicePhotos.isNotEmpty) ...[
             pw.SizedBox(height: 24),
             pw.Text('Photos',
-                style: pw.TextStyle(
-                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                style:
+                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
             ...invoicePhotos.map((photo) {
               final file = File(photo.path);
@@ -239,25 +244,45 @@ _tableCell('Price', bold: true, align: pw.TextAlign.right),
           pw.Divider(),
           pw.Center(
             child: pw.Text('Thank you for your business!',
-                style: pw.TextStyle(
-                    fontSize: 10, fontStyle: pw.FontStyle.italic)),
+                style:
+                    pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
           ),
         ],
       ),
     );
 
-    final output = await getTemporaryDirectory();
+    final output = invoiceNumber == null
+        ? await getTemporaryDirectory()
+        : await _invoiceDirectory(visit.dateTime.year);
     final safeClientName = client.fullName
-    .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
-    .replaceAll(RegExp(r'_+'), '_')
-    .replaceAll(RegExp(r'^_|_$'), '');
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
 
-final date = visit.dateTime.toIso8601String().split('T').first;
-final docType = visit.paid ? 'Receipt' : 'Invoice';
+    final date = visit.dateTime.toIso8601String().split('T').first;
+    final docType = visit.paid ? 'Receipt' : 'Invoice';
 
-final file = File('${output.path}/${safeClientName}_${date}_$docType.pdf');
+    final fileName = invoiceNumber == null
+        ? '${safeClientName}_${date}_$docType.pdf'
+        : '$invoiceNumber.pdf';
+    final file = File(p.join(output.path, fileName));
     await file.writeAsBytes(await pdf.save());
     return file;
+  }
+
+  static Future<Directory> _invoiceDirectory(int year) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final directory = Directory(p.join(
+      documents.path,
+      'invoices',
+      year.toString(),
+    ));
+
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
+    return directory;
   }
 
   static pw.Widget _buildHeader(CompanyInfo company, pw.MemoryImage? logo) {
@@ -275,7 +300,8 @@ final file = File('${output.path}/${safeClientName}_${date}_$docType.pdf');
                     style: pw.TextStyle(
                         fontSize: 20, fontWeight: pw.FontWeight.bold)),
               if (company.address.isNotEmpty)
-                pw.Text(company.address, style: const pw.TextStyle(fontSize: 10)),
+                pw.Text(company.address,
+                    style: const pw.TextStyle(fontSize: 10)),
               if (company.phone.isNotEmpty)
                 pw.Text('Phone: ${company.phone}',
                     style: const pw.TextStyle(fontSize: 10)),
@@ -301,30 +327,28 @@ final file = File('${output.path}/${safeClientName}_${date}_$docType.pdf');
       pw.Padding(
         padding: const pw.EdgeInsets.all(6),
         child: pw.Text(text,
-            style: bold
-                ? pw.TextStyle(fontWeight: pw.FontWeight.bold)
-                : null,
+            style: bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
             textAlign: align),
       );
 
   static Future<void> shareInvoice(
-  File file, {
-  String? subject,
-  String? fileName,
-}) async {
-  await Share.shareXFiles(
-    [XFile(file.path)],
-    subject: subject,
-    text: subject ?? 'Farrier Invoice',
-  );
-}
-  static Future<void> printInvoice(File file) async {
-  final documentName =
-      file.path.split('/').last.replaceAll('.pdf', '');
+    File file, {
+    String? subject,
+    String? fileName,
+  }) async {
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: subject,
+      text: subject ?? 'Farrier Invoice',
+    );
+  }
 
-  await Printing.layoutPdf(
-    name: documentName,
-    onLayout: (_) async => await file.readAsBytes(),
-  );
-}
+  static Future<void> printInvoice(File file) async {
+    final documentName = file.path.split('/').last.replaceAll('.pdf', '');
+
+    await Printing.layoutPdf(
+      name: documentName,
+      onLayout: (_) async => await file.readAsBytes(),
+    );
+  }
 }

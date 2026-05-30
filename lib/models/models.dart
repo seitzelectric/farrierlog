@@ -196,7 +196,7 @@ class ServiceLine {
     this.horseId,
     required this.horseName,
     this.horseBreed = '',
-this.horseColor = '',
+    this.horseColor = '',
     required this.description,
     required this.price,
     DateTime? createdAt,
@@ -265,5 +265,83 @@ class VisitPhoto {
         createdAt: map['created_at'] != null
             ? DateTime.parse(map['created_at'] as String)
             : null,
+      );
+}
+
+class InvoiceRecord {
+  final int? id;
+  final int visitId;
+  final String invoiceNumber;
+  final DateTime issuedAt;
+  final DateTime? paidAt;
+  final double total;
+  final String filePath;
+  final String fileName;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  InvoiceRecord({
+    this.id,
+    required this.visitId,
+    required this.invoiceNumber,
+    required this.issuedAt,
+    this.paidAt,
+    required this.total,
+    required this.filePath,
+    required this.fileName,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() => {
+        if (id != null) 'id': id,
+        'visit_id': visitId,
+        'invoice_number': invoiceNumber,
+        'issued_at': issuedAt.toIso8601String(),
+        'paid_at': paidAt?.toIso8601String(),
+        'total': total,
+        'file_path': filePath,
+        'file_name': fileName,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
+  factory InvoiceRecord.fromMap(Map<String, dynamic> map) => InvoiceRecord(
+        id: map['id'] as int?,
+        visitId: map['visit_id'] as int,
+        invoiceNumber: (map['invoice_number'] as String?) ?? '',
+        issuedAt: DateTime.parse(map['issued_at'] as String),
+        paidAt: map['paid_at'] != null
+            ? DateTime.parse(map['paid_at'] as String)
+            : null,
+        total: (map['total'] as num?)?.toDouble() ?? 0,
+        filePath: (map['file_path'] as String?) ?? '',
+        fileName: (map['file_name'] as String?) ?? '',
+        createdAt: map['created_at'] != null
+            ? DateTime.parse(map['created_at'] as String)
+            : null,
+        updatedAt: map['updated_at'] != null
+            ? DateTime.parse(map['updated_at'] as String)
+            : null,
+      );
+
+  InvoiceRecord copyWith({
+    String? filePath,
+    String? fileName,
+    DateTime? paidAt,
+    bool clearPaidAt = false,
+  }) =>
+      InvoiceRecord(
+        id: id,
+        visitId: visitId,
+        invoiceNumber: invoiceNumber,
+        issuedAt: issuedAt,
+        paidAt: clearPaidAt ? null : paidAt ?? this.paidAt,
+        total: total,
+        filePath: filePath ?? this.filePath,
+        fileName: fileName ?? this.fileName,
+        createdAt: createdAt,
+        updatedAt: DateTime.now(),
       );
 }
