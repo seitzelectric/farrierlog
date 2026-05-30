@@ -67,7 +67,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final confirmed = await ConfirmationDialog.show(
       context,
       title: 'Delete Client',
-      message: 'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, horses, and photos.',
+      message: 'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, animals, and photos.',
     );
     if (confirmed == true) {
       await DatabaseService.deleteClient(_client.id!);
@@ -100,7 +100,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   Future<void> _deleteHorse(Horse horse) async {
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Horse',
+      title: 'Delete Animal',
       message: 'Are you sure you want to delete ${horse.name}?',
     );
     if (confirmed == true) {
@@ -223,14 +223,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
                   const SizedBox(height: 16),
                   SectionHeader(
-                    title: 'Horses (${_horses.length})',
+                    title: 'Animals (${_horses.length})',
                     onAdd: _addHorseDialog,
-                    addLabel: 'Add Horse',
+                    addLabel: 'Add Animal',
                   ),
                   if (_horses.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text('No horses added yet'),
+                      child: Text('No animals added yet'),
                     )
                   else
                     ..._horses.map((horse) => Card(
@@ -335,7 +335,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(isEditing ? 'Edit Horse' : 'New Horse'),
+      title: Text(isEditing ? 'Edit Animal' : 'New Animal'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -353,7 +353,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
               ),
               TextFormField(
                 controller: _colorCtrl,
-                decoration: const InputDecoration(labelText: 'Service'),
+                decoration: const InputDecoration(labelText: 'Description'),
               ),
               TextFormField(
                 controller: _notesCtrl,
@@ -447,7 +447,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
             if (widget.horses.isNotEmpty)
               DropdownButtonFormField<int?>(
                 value: _selectedHorseId,
-                decoration: const InputDecoration(labelText: 'Horse'),
+                decoration: const InputDecoration(labelText: 'Animal'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('General')),
                   ...widget.horses.map((h) =>

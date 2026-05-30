@@ -188,11 +188,11 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           ),
           const SizedBox(height: 8),
           if (_selectedClient != null) ...[
-            Text('Select Horses', style: Theme.of(context).textTheme.titleMedium),
+            Text('Select Animals', style: Theme.of(context).textTheme.titleMedium),
             if (_horses.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(8),
-                child: Text('No horses for this client'),
+                child: Text('No animals for this client'),
               )
             else
               ..._horses.map((h) => CheckboxListTile(

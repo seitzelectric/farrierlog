@@ -127,7 +127,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   if (_horses.isNotEmpty)
                     DropdownButtonFormField<int?>(
                       value: horseId,
-                      decoration: const InputDecoration(labelText: 'Horse'),
+                      decoration: const InputDecoration(labelText: 'Animal'),
                       items: [
                         const DropdownMenuItem(value: null, child: Text('None')),
                         ..._horses.map((h) => DropdownMenuItem(
@@ -357,11 +357,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SectionHeader(title: 'Horses (${_horses.length})'),
+            SectionHeader(title: 'Animals (${_horses.length})'),
             if (_horses.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('No horses selected for this visit'),
+                child: Text('No animals selected for this visit'),
               )
             else
               ..._horses.map((h) => ListTile(
@@ -372,7 +372,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             SectionHeader(
               title: 'Billing',
               onAdd: _addServiceLine,
-              addLabel: 'Add Line',
+              addLabel: 'Add Service Line',
             ),
             if (_serviceLines.isEmpty)
               const Padding(
@@ -441,4 +441,3 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     );
   }
 }
-
