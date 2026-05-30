@@ -8,8 +8,9 @@ import 'screens.dart';
 
 class NewVisitScreen extends StatefulWidget {
   final Client? client;
+  final Visit? visit;
 
-  const NewVisitScreen({super.key, this.client});
+  const NewVisitScreen({super.key, this.client, this.visit});
 
   @override
   State<NewVisitScreen> createState() => _NewVisitScreenState();
@@ -22,25 +23,50 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   Client? _selectedClient;
   List<Horse> _horses = [];
   final Set<int> _selectedHorseIds = {};
+  int? _recurrenceWeeks;
+  final _customWeeksCtrl = TextEditingController();
   bool _loading = true;
+  bool get _isEditing => widget.visit != null;
+  bool get _isCustomRecurrence =>
+      _recurrenceWeeks != null && ![4, 6, 8, 10].contains(_recurrenceWeeks);
 
   @override
   void initState() {
     super.initState();
     _selectedClient = widget.client;
+    final visit = widget.visit;
+    if (visit != null) {
+      _selectedDateTime = visit.dateTime;
+      _notesCtrl.text = visit.notes;
+      _recurrenceWeeks = visit.recurrenceWeeks;
+      if (_isCustomRecurrence) {
+        _customWeeksCtrl.text = _recurrenceWeeks.toString();
+      }
+    }
     _loadData();
   }
 
   @override
   void dispose() {
     _notesCtrl.dispose();
+    _customWeeksCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadData() async {
     final clients = await DatabaseService.getClients();
+    if (_selectedClient == null && widget.visit != null) {
+      _selectedClient = await DatabaseService.getClient(widget.visit!.clientId);
+    }
     if (_selectedClient != null) {
       _horses = await DatabaseService.getHorsesForClient(_selectedClient!.id!);
+    }
+    if (widget.visit?.id != null) {
+      final selectedHorses =
+          await DatabaseService.getHorsesForVisit(widget.visit!.id!);
+      _selectedHorseIds
+        ..clear()
+        ..addAll(selectedHorses.map((h) => h.id!).whereType<int>());
     }
     if (mounted) {
       setState(() {
@@ -83,8 +109,12 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     );
     if (picked != null) {
       setState(() {
-        _selectedDateTime = DateTime(_selectedDateTime.year,
-            _selectedDateTime.month, _selectedDateTime.day, picked.hour, picked.minute);
+        _selectedDateTime = DateTime(
+            _selectedDateTime.year,
+            _selectedDateTime.month,
+            _selectedDateTime.day,
+            picked.hour,
+            picked.minute);
       });
     }
   }
@@ -97,38 +127,51 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
       return;
     }
 
+    final recurrenceWeeks = _resolvedRecurrenceWeeks();
+    if (recurrenceWeeks != null && recurrenceWeeks <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Custom weeks must be greater than 0')),
+      );
+      return;
+    }
+
     final visit = Visit(
+      id: widget.visit?.id,
       clientId: _selectedClient!.id!,
       clientName: _selectedClient!.fullName,
       dateTime: _selectedDateTime,
       notes: _notesCtrl.text.trim(),
-      paid: false,
+      paid: widget.visit?.paid ?? false,
+      recurrenceWeeks: recurrenceWeeks,
+      nextRecurringVisitId: widget.visit?.nextRecurringVisitId,
+      createdAt: widget.visit?.createdAt,
     );
 
-    final visitId = await DatabaseService.insertVisit(
-      visit,
-      _selectedHorseIds.toList(),
-    );
+    final visitId = _isEditing
+        ? await DatabaseService.updateVisit(visit, _selectedHorseIds.toList())
+        : await DatabaseService.insertVisit(visit, _selectedHorseIds.toList());
 
-    try {
-  final event = Event(
-    title: 'Farrier - ${_selectedClient!.fullName}',
-    description: _notesCtrl.text.trim().isEmpty
-        ? 'Farrier visit'
-        : _notesCtrl.text.trim(),
-    location: _selectedClient!.address,
-    startDate: _selectedDateTime,
-    endDate: _selectedDateTime.add(const Duration(hours: 1)),
-  );
+    if (!_isEditing) {
+      try {
+        final event = Event(
+          title: 'Farrier - ${_selectedClient!.fullName}',
+          description: _notesCtrl.text.trim().isEmpty
+              ? 'Farrier visit'
+              : _notesCtrl.text.trim(),
+          location: _selectedClient!.address,
+          startDate: _selectedDateTime,
+          endDate: _selectedDateTime.add(const Duration(hours: 1)),
+        );
 
-  await Add2Calendar.addEvent2Cal(event);
-} catch (e) {
-  if (!mounted) return;
+        await Add2Calendar.addEvent2Cal(event);
+      } catch (e) {
+        if (!mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Calendar event was not added: $e')),
-  );
-}
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Calendar event was not added: $e')),
+        );
+      }
+    }
 
     final created = await DatabaseService.getVisit(visitId);
     if (!mounted || created == null) return;
@@ -139,17 +182,29 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     );
   }
 
+  int? _resolvedRecurrenceWeeks() {
+    if (!_isCustomRecurrence) return _recurrenceWeeks;
+    return int.tryParse(_customWeeksCtrl.text.trim());
+  }
+
+  void _onRecurrenceChanged(int? value) {
+    setState(() {
+      _recurrenceWeeks = value;
+      if (!_isCustomRecurrence) _customWeeksCtrl.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('New Visit')),
+        appBar: AppBar(title: Text(_isEditing ? 'Edit Visit' : 'New Visit')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New Visit')),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Visit' : 'New Visit')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -186,9 +241,49 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
             subtitle: Text(AppUtils.formatTime(_selectedDateTime)),
             onTap: _pickTime,
           ),
+          DropdownButtonFormField<int?>(
+            value: _isCustomRecurrence ? -1 : _recurrenceWeeks,
+            decoration: const InputDecoration(labelText: 'Recurring'),
+            items: const [
+              DropdownMenuItem<int?>(value: null, child: Text('None')),
+              DropdownMenuItem<int?>(value: 4, child: Text('Every 4 weeks')),
+              DropdownMenuItem<int?>(value: 6, child: Text('Every 6 weeks')),
+              DropdownMenuItem<int?>(value: 8, child: Text('Every 8 weeks')),
+              DropdownMenuItem<int?>(value: 10, child: Text('Every 10 weeks')),
+              DropdownMenuItem<int?>(value: -1, child: Text('Custom weeks')),
+            ],
+            onChanged: (value) {
+              if (value == -1) {
+                if (_customWeeksCtrl.text.trim().isEmpty) {
+                  _customWeeksCtrl.text = '1';
+                }
+                _onRecurrenceChanged(
+                  int.tryParse(_customWeeksCtrl.text.trim()) ?? 1,
+                );
+              } else {
+                _onRecurrenceChanged(value);
+              }
+            },
+          ),
+          if (_isCustomRecurrence) ...[
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _customWeeksCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Custom weeks',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: (value) {
+                final weeks = int.tryParse(value.trim());
+                if (weeks != null) _recurrenceWeeks = weeks;
+              },
+            ),
+          ],
           const SizedBox(height: 8),
           if (_selectedClient != null) ...[
-            Text('Select Animals', style: Theme.of(context).textTheme.titleMedium),
+            Text('Select Animals',
+                style: Theme.of(context).textTheme.titleMedium),
             if (_horses.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(8),
@@ -222,7 +317,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           ElevatedButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: const Text('Save Visit'),
+            label: Text(_isEditing ? 'Update Visit' : 'Save Visit'),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),

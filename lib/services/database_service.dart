@@ -6,7 +6,7 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
 
   static Future<Database> get database async {
     if (_db != null) return _db!;
@@ -69,6 +69,8 @@ class DatabaseService {
         datetime TEXT NOT NULL,
         notes TEXT NOT NULL DEFAULT '',
         paid INTEGER NOT NULL DEFAULT 0,
+        recurrence_weeks INTEGER,
+        next_recurring_visit_id INTEGER,
         created_at TEXT NOT NULL,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
@@ -132,6 +134,8 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_visits_client ON visits(client_id)');
     await db.execute('CREATE INDEX idx_visits_datetime ON visits(datetime)');
     await db.execute(
+        'CREATE INDEX idx_visits_next_recurring ON visits(next_recurring_visit_id)');
+    await db.execute(
         'CREATE INDEX idx_service_lines_visit ON service_lines(visit_id)');
     await db.execute(
         'CREATE INDEX idx_visit_photos_visit ON visit_photos(visit_id)');
@@ -185,6 +189,15 @@ class DatabaseService {
           'CREATE INDEX IF NOT EXISTS idx_invoices_visit ON invoices(visit_id)');
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_invoices_issued_at ON invoices(issued_at)');
+    }
+
+    if (oldVersion < 6) {
+      await db
+          .execute('ALTER TABLE visits ADD COLUMN recurrence_weeks INTEGER');
+      await db.execute(
+          'ALTER TABLE visits ADD COLUMN next_recurring_visit_id INTEGER');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_visits_next_recurring ON visits(next_recurring_visit_id)');
     }
   }
 
@@ -393,6 +406,66 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [visitId],
     );
+  }
+
+  static Future<int?> createNextRecurringVisit(Visit visit) async {
+    final recurrenceWeeks = visit.recurrenceWeeks;
+    if (visit.id == null ||
+        recurrenceWeeks == null ||
+        recurrenceWeeks <= 0 ||
+        visit.nextRecurringVisitId != null) {
+      return null;
+    }
+
+    final db = await database;
+    return await db.transaction((txn) async {
+      final currentRows = await txn.query(
+        'visits',
+        columns: ['next_recurring_visit_id'],
+        where: 'id = ?',
+        whereArgs: [visit.id],
+        limit: 1,
+      );
+      if (currentRows.isEmpty) return null;
+
+      final existingNextId =
+          currentRows.first['next_recurring_visit_id'] as int?;
+      if (existingNextId != null) return existingNextId;
+
+      final nextVisitId = await txn.insert('visits', {
+        'client_id': visit.clientId,
+        'datetime': visit.dateTime
+            .add(Duration(days: recurrenceWeeks * 7))
+            .toIso8601String(),
+        'notes': '',
+        'paid': 0,
+        'recurrence_weeks': recurrenceWeeks,
+        'next_recurring_visit_id': null,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      final horseRows = await txn.query(
+        'visit_horses',
+        columns: ['horse_id'],
+        where: 'visit_id = ?',
+        whereArgs: [visit.id],
+      );
+      for (final row in horseRows) {
+        await txn.insert('visit_horses', {
+          'visit_id': nextVisitId,
+          'horse_id': row['horse_id'],
+        });
+      }
+
+      await txn.update(
+        'visits',
+        {'next_recurring_visit_id': nextVisitId},
+        where: 'id = ?',
+        whereArgs: [visit.id],
+      );
+
+      return nextVisitId;
+    });
   }
 
   // ==================== SERVICE LINE OPERATIONS ====================

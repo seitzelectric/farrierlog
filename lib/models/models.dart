@@ -133,6 +133,8 @@ class Visit {
   final DateTime dateTime;
   final String notes;
   final bool paid;
+  final int? recurrenceWeeks;
+  final int? nextRecurringVisitId;
   final DateTime createdAt;
 
   Visit({
@@ -142,6 +144,8 @@ class Visit {
     required this.dateTime,
     required this.notes,
     required this.paid,
+    this.recurrenceWeeks,
+    this.nextRecurringVisitId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -158,6 +162,8 @@ class Visit {
         'datetime': dateTime.toIso8601String(),
         'notes': notes,
         'paid': paid ? 1 : 0,
+        'recurrence_weeks': recurrenceWeeks,
+        'next_recurring_visit_id': nextRecurringVisitId,
         'created_at': createdAt.toIso8601String(),
       };
 
@@ -172,6 +178,8 @@ class Visit {
       dateTime: DateTime.parse(map['datetime'] as String),
       notes: (map['notes'] as String?) ?? '',
       paid: (map['paid'] as int?) == 1,
+      recurrenceWeeks: map['recurrence_weeks'] as int?,
+      nextRecurringVisitId: map['next_recurring_visit_id'] as int?,
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,

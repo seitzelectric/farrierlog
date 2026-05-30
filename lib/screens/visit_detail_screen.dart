@@ -53,6 +53,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   double get _total => _serviceLines.fold(0.0, (sum, line) => sum + line.price);
 
   Future<void> _togglePaid(bool value) async {
+    final wasPaid = _visit.paid;
     await DatabaseService.setVisitPaid(_visit.id!, value);
     await DatabaseService.setInvoicesPaidForVisit(_visit.id!, value);
     setState(() {
@@ -63,8 +64,25 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
         dateTime: _visit.dateTime,
         notes: _visit.notes,
         paid: value,
+        recurrenceWeeks: _visit.recurrenceWeeks,
+        nextRecurringVisitId: _visit.nextRecurringVisitId,
+        createdAt: _visit.createdAt,
       );
     });
+    if (!mounted) return;
+    if (!wasPaid &&
+        value &&
+        _visit.recurrenceWeeks != null &&
+        _visit.nextRecurringVisitId == null) {
+      final scheduleNext = await ConfirmationDialog.show(
+        context,
+        title: 'Recurring Visit',
+        message: 'Schedule next recurring visit?',
+      );
+      if (scheduleNext == true) {
+        await DatabaseService.createNextRecurringVisit(_visit);
+      }
+    }
     _loadData();
   }
 
@@ -410,9 +428,21 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             ),
           PopupMenuButton<String>(
             onSelected: (value) {
+              if (value == 'edit') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NewVisitScreen(visit: _visit),
+                  ),
+                ).then((_) => _loadData());
+              }
               if (value == 'delete') _deleteVisit();
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Text('Edit Visit'),
+              ),
               const PopupMenuItem(
                 value: 'delete',
                 child:
