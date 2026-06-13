@@ -47,6 +47,20 @@ class _ClientListScreenState extends State<ClientListScreen> {
     }
   }
 
+  Future<bool> _confirmDeleteClient(Client client) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Client',
+      message:
+          'Delete ${client.fullName}? This will also delete all associated visits, animals, and photos.',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteClient(client.id!);
+      await _loadClients();
+    }
+    return false;
+  }
+
   void _showSearch() {
     showSearch(
       context: context,
@@ -92,26 +106,38 @@ class _ClientListScreenState extends State<ClientListScreen> {
                     itemBuilder: (_, i) {
                       final client = _clients[i];
 
-                      return ListTile(
-                        leading: ClientAvatar(client: client),
-                        title: Text(client.fullName),
-                        subtitle: Text(
-                          client.phone.isNotEmpty
-                              ? client.phone
-                              : client.email.isNotEmpty
-                                  ? client.email
-                                  : 'No contact info',
+                      return Dismissible(
+                        key: ValueKey('client-${client.id}'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ClientDetailScreen(client: client),
-                            ),
-                          );
-                          _loadClients();
-                        },
+                        confirmDismiss: (_) => _confirmDeleteClient(client),
+                        child: ListTile(
+                          leading: ClientAvatar(client: client),
+                          title: Text(client.fullName),
+                          subtitle: Text(
+                            client.phone.isNotEmpty
+                                ? client.phone
+                                : client.email.isNotEmpty
+                                    ? client.email
+                                    : 'No contact info',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ClientDetailScreen(client: client),
+                              ),
+                            );
+                            _loadClients();
+                          },
+                        ),
                       );
                     },
                   ),

@@ -67,7 +67,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final confirmed = await ConfirmationDialog.show(
       context,
       title: 'Delete Client',
-      message: 'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, animals, and photos.',
+      message:
+          'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, animals, and photos.',
     );
     if (confirmed == true) {
       await DatabaseService.deleteClient(_client.id!);
@@ -109,6 +110,33 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     }
   }
 
+  Future<bool> _confirmDeleteHorse(Horse horse) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Animal',
+      message: 'Are you sure you want to delete ${horse.name}?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteHorse(horse.id!);
+      await _loadData();
+    }
+    return false;
+  }
+
+  Future<bool> _confirmDeleteVisit(Visit visit) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Visit',
+      message:
+          'Delete the visit on ${AppUtils.formatDateTime(visit.dateTime)}?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteVisit(visit.id!);
+      await _loadData();
+    }
+    return false;
+  }
+
   Future<void> _addVisit() async {
     await Navigator.push(
       context,
@@ -141,7 +169,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               const PopupMenuItem(value: 'edit', child: Text('Edit Client')),
               const PopupMenuItem(
                 value: 'delete',
-                child: Text('Delete Client', style: TextStyle(color: Colors.red)),
+                child:
+                    Text('Delete Client', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -168,26 +197,32 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(_client.fullName, style: Theme.of(context).textTheme.titleLarge),
+                                    Text(_client.fullName,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge),
                                     if (_client.address.isNotEmpty)
-                                      Text(_client.address, style: Theme.of(context).textTheme.bodyMedium),
+                                      Text(_client.address,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                                                    const SizedBox(height: 12),
-
+                          const SizedBox(height: 12),
                           if (_client.phone.isNotEmpty)
                             ListTile(
                               dense: true,
                               leading: const Icon(Icons.phone),
                               title: Text(_client.phone),
-                              subtitle: const Text('Tap to call • Long-press to text'),
+                              subtitle: const Text(
+                                  'Tap to call • Long-press to text'),
                               onTap: () => _openUri('tel:${_client.phone}'),
-                              onLongPress: () => _openUri('sms:${_client.phone}'),
+                              onLongPress: () =>
+                                  _openUri('sms:${_client.phone}'),
                             ),
-
                           if (_client.email.isNotEmpty)
                             ListTile(
                               dense: true,
@@ -196,7 +231,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               subtitle: const Text('Tap to email'),
                               onTap: () => _openUri('mailto:${_client.email}'),
                             ),
-
                           if (_client.address.isNotEmpty)
                             ListTile(
                               dense: true,
@@ -204,13 +238,13 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               title: Text(_client.address),
                               subtitle: const Text('Open in maps'),
                               onTap: () {
-                                final encoded = Uri.encodeComponent(_client.address);
+                                final encoded =
+                                    Uri.encodeComponent(_client.address);
                                 _openUri(
                                   'https://www.google.com/maps/search/?api=1&query=$encoded',
                                 );
                               },
                             ),
-
                           if (_client.notes.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
@@ -220,7 +254,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
                   SectionHeader(
                     title: 'Animals (${_horses.length})',
@@ -233,30 +266,46 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       child: Text('No animals added yet'),
                     )
                   else
-                    ..._horses.map((horse) => Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          child: ListTile(
-                            leading: HorseAvatar(horse: horse, radius: 20),
-                            title: Text(horse.name),
-                            subtitle: horse.notes.isNotEmpty
-                                ? Text(horse.notes, maxLines: 1, overflow: TextOverflow.ellipsis)
-                                : null,
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'edit') _editHorse(horse);
-                                if (value == 'delete') _deleteHorse(horse);
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete', style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
+                    ..._horses.map((horse) => Dismissible(
+                          key: ValueKey('horse-${horse.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child:
+                                const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          confirmDismiss: (_) => _confirmDeleteHorse(horse),
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            child: ListTile(
+                              leading: HorseAvatar(horse: horse, radius: 20),
+                              title: Text(horse.name),
+                              subtitle: horse.notes.isNotEmpty
+                                  ? Text(horse.notes,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis)
+                                  : null,
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == 'edit') _editHorse(horse);
+                                  if (value == 'delete') _deleteHorse(horse);
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                      value: 'edit', child: Text('Edit')),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Delete',
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         )),
-
                   const SizedBox(height: 16),
                   SectionHeader(
                     title: 'Visits (${_visits.length})',
@@ -269,17 +318,30 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       child: Text('No visits yet'),
                     )
                   else
-                    ..._visits.map((visit) => VisitListTile(
-                          visit: visit,
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => VisitDetailScreen(visit: visit),
-                              ),
-                            );
-                            _loadData();
-                          },
+                    ..._visits.map((visit) => Dismissible(
+                          key: ValueKey('visit-${visit.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: Colors.red,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child:
+                                const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          confirmDismiss: (_) => _confirmDeleteVisit(visit),
+                          child: VisitListTile(
+                            visit: visit,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      VisitDetailScreen(visit: visit),
+                                ),
+                              );
+                              _loadData();
+                            },
+                          ),
                         )),
                 ],
               ),
@@ -345,7 +407,8 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
               TextFormField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(labelText: 'Name'),
-                validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
               ),
               TextFormField(
                 controller: _breedCtrl,
@@ -421,9 +484,12 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
   @override
   void initState() {
     super.initState();
-    _descCtrl = TextEditingController(text: widget.serviceLine?.description ?? '');
+    _descCtrl =
+        TextEditingController(text: widget.serviceLine?.description ?? '');
     _priceCtrl = TextEditingController(
-      text: widget.serviceLine != null ? widget.serviceLine!.price.toString() : '',
+      text: widget.serviceLine != null
+          ? widget.serviceLine!.price.toString()
+          : '',
     );
     _selectedHorseId = widget.serviceLine?.horseId;
   }
@@ -466,7 +532,8 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
                 labelText: 'Price',
                 prefixText: '\$',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Required';
                 if (double.tryParse(v) == null) return 'Invalid number';
@@ -513,12 +580,14 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
 class VisitListTile extends StatelessWidget {
   final Visit visit;
   final VoidCallback onTap;
+  final VoidCallback? onConfirm;
 
   const VisitListTile({
-  super.key,
-  required this.visit,
-  required this.onTap,
-});
+    super.key,
+    required this.visit,
+    required this.onTap,
+    this.onConfirm,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -526,22 +595,28 @@ class VisitListTile extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: visit.paid
-              ? Colors.green.shade100
-              : visit.isPast
-                  ? Colors.red.shade100
-                  : Colors.orange.shade100,
+          backgroundColor: visit.isAutoGenerated
+              ? Theme.of(context).colorScheme.surface
+              : visit.paid
+                  ? Colors.green.shade100
+                  : visit.isPast
+                      ? Colors.red.shade100
+                      : Colors.orange.shade100,
           child: Icon(
-            visit.paid
-                ? Icons.check_circle
-                : visit.isPast
-                    ? Icons.warning
-                    : Icons.event,
-            color: visit.paid
-                ? Colors.green
-                : visit.isPast
-                    ? Colors.red
-                    : Colors.orange,
+            visit.isAutoGenerated
+                ? Icons.event_available
+                : visit.paid
+                    ? Icons.check_circle
+                    : visit.isPast
+                        ? Icons.warning
+                        : Icons.event,
+            color: visit.isAutoGenerated
+                ? Theme.of(context).colorScheme.primary
+                : visit.paid
+                    ? Colors.green
+                    : visit.isPast
+                        ? Colors.red
+                        : Colors.orange,
           ),
         ),
         title: Text(visit.clientName),
@@ -550,7 +625,12 @@ class VisitListTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: onConfirm != null
+            ? TextButton(
+                onPressed: onConfirm,
+                child: const Text('Confirm'),
+              )
+            : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
     );

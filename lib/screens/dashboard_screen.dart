@@ -73,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _StatCard(
                   title: 'Total Animals',
                   value: '${_stats['totalHorses']}',
-                  icon: Icons.dataset,
+                  icon: Icons.pets,
                   color: Colors.brown,
                 ),
                 _StatCard(
