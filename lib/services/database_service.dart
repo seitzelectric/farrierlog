@@ -318,6 +318,26 @@ class DatabaseService {
     return rows.map((r) => Horse.fromMap(r)).toList();
   }
 
+  static Future<List<HorseWithClientInfo>> getAllHorsesWithClientInfo() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        horses.*,
+        clients.first_name AS client_first_name,
+        clients.last_name AS client_last_name,
+        clients.phone AS client_phone,
+        clients.email AS client_email,
+        clients.address AS client_address,
+        clients.notes AS client_notes,
+        clients.created_at AS client_created_at,
+        clients.updated_at AS client_updated_at
+      FROM horses
+      INNER JOIN clients ON clients.id = horses.client_id
+      ORDER BY horses.name COLLATE NOCASE, clients.last_name COLLATE NOCASE
+    ''');
+    return rows.map((r) => HorseWithClientInfo.fromMap(r)).toList();
+  }
+
   // ==================== VISIT OPERATIONS ====================
 
   static Future<int> insertVisit(Visit visit, List<int> horseIds) async {
@@ -388,6 +408,60 @@ class DatabaseService {
       $where
       ORDER BY visits.datetime ASC
     ''', args);
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getPastDueVisits() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visits.paid = 0 AND visits.datetime < ?
+      ORDER BY visits.datetime ASC
+    ''', [DateTime.now().toIso8601String()]);
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getUpcomingVisits({int daysAhead = 30}) async {
+    final now = DateTime.now();
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visits.paid = 0
+        AND visits.datetime >= ?
+        AND visits.datetime <= ?
+      ORDER BY visits.datetime ASC
+    ''', [
+      now.toIso8601String(),
+      now.add(Duration(days: daysAhead)).toIso8601String(),
+    ]);
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getUnpaidVisits() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visits.paid = 0
+      ORDER BY visits.datetime ASC
+    ''');
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getPaidVisits() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visits.paid = 1
+      ORDER BY visits.datetime DESC
+    ''');
     return rows.map((r) => Visit.fromMap(r)).toList();
   }
 
@@ -800,13 +874,17 @@ class DatabaseService {
     final totalHorses = Sqflite.firstIntValue(
             await db.rawQuery('SELECT COUNT(*) FROM horses')) ??
         0;
+    final now = DateTime.now();
     final upcomingVisits = Sqflite.firstIntValue(await db.rawQuery(
-            "SELECT COUNT(*) FROM visits WHERE datetime >= ? AND paid = 0",
-            [DateTime.now().toIso8601String()])) ??
+            "SELECT COUNT(*) FROM visits WHERE datetime >= ? AND datetime <= ? AND paid = 0",
+            [
+              now.toIso8601String(),
+              now.add(const Duration(days: 30)).toIso8601String(),
+            ])) ??
         0;
-    final unpaidVisits = Sqflite.firstIntValue(await db.rawQuery(
+    final pastDueVisits = Sqflite.firstIntValue(await db.rawQuery(
             "SELECT COUNT(*) FROM visits WHERE paid = 0 AND datetime < ?",
-            [DateTime.now().toIso8601String()])) ??
+            [now.toIso8601String()])) ??
         0;
 
     final revenueResult = await db.rawQuery('''
@@ -831,7 +909,8 @@ class DatabaseService {
       'totalClients': totalClients,
       'totalHorses': totalHorses,
       'upcomingVisits': upcomingVisits,
-      'unpaidVisits': unpaidVisits,
+      'unpaidVisits': pastDueVisits,
+      'pastDueVisits': pastDueVisits,
       'totalRevenue': totalRevenue,
       'outstandingRevenue': outstandingRevenue,
     };

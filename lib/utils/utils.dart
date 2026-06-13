@@ -1,6 +1,20 @@
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppUtils {
+  static Uri googleMapsSearchUri(String address) {
+    final encoded = Uri.encodeComponent(address);
+    return Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$encoded',
+    );
+  }
+
+  static Future<bool> openGoogleMapsSearch(String address) async {
+    final uri = googleMapsSearchUri(address);
+    if (!await canLaunchUrl(uri)) return false;
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   static String formatDateTime(DateTime dateTime) {
     final hour = dateTime.hour == 0
         ? 12

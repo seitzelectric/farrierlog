@@ -1,6 +1,7 @@
 export 'visit_detail_screen.dart';
 export 'client_form_dialog.dart';
 export 'dashboard_screen.dart';
+export 'dashboard_list_screen.dart';
 export 'client_list_screen.dart';
 export 'home_screen.dart';
 export 'calendar_screen.dart';
@@ -237,13 +238,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               leading: const Icon(Icons.map),
                               title: Text(_client.address),
                               subtitle: const Text('Open in maps'),
-                              onTap: () {
-                                final encoded =
-                                    Uri.encodeComponent(_client.address);
-                                _openUri(
-                                  'https://www.google.com/maps/search/?api=1&query=$encoded',
-                                );
-                              },
+                              onTap: () => AppUtils.openGoogleMapsSearch(
+                                _client.address,
+                              ),
                             ),
                           if (_client.notes.isNotEmpty)
                             Padding(

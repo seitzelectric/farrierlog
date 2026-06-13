@@ -129,6 +129,33 @@ class Horse {
       );
 }
 
+class HorseWithClientInfo {
+  final Horse horse;
+  final Client client;
+
+  const HorseWithClientInfo({
+    required this.horse,
+    required this.client,
+  });
+
+  factory HorseWithClientInfo.fromMap(Map<String, dynamic> map) {
+    return HorseWithClientInfo(
+      horse: Horse.fromMap(map),
+      client: Client.fromMap({
+        'id': map['client_id'] as int?,
+        'first_name': map['client_first_name'],
+        'last_name': map['client_last_name'],
+        'phone': map['client_phone'],
+        'email': map['client_email'],
+        'address': map['client_address'],
+        'notes': map['client_notes'],
+        'created_at': map['client_created_at'],
+        'updated_at': map['client_updated_at'],
+      }),
+    );
+  }
+}
+
 class Visit {
   final int? id;
   final int clientId;

@@ -42,6 +42,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _openList(DashboardListType type) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DashboardListScreen(type: type)),
+    );
+    _loadData();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -69,26 +77,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   value: '${_stats['totalClients']}',
                   icon: Icons.people,
                   color: Colors.blue,
+                  onTap: () => _openList(DashboardListType.clients),
                 ),
                 _StatCard(
                   title: 'Total Animals',
                   value: '${_stats['totalHorses']}',
                   icon: Icons.pets,
                   color: Colors.brown,
+                  onTap: () => _openList(DashboardListType.animals),
                 ),
                 _StatCard(
                   title: 'Upcoming',
                   value: '${_stats['upcomingVisits']}',
                   icon: Icons.event,
                   color: Colors.orange,
+                  onTap: () => _openList(DashboardListType.upcomingVisits),
                 ),
                 _StatCard(
                   title: 'Past Due',
-                  value: '${_stats['unpaidVisits']}',
+                  value: '${_stats['pastDueVisits']}',
                   icon: Icons.warning_amber,
-                  color: (_stats['unpaidVisits'] as int) > 0
+                  color: (_stats['pastDueVisits'] as int) > 0
                       ? Colors.red
                       : Colors.green,
+                  onTap: () => _openList(DashboardListType.pastDueVisits),
                 ),
               ],
             ),
@@ -103,6 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     icon: Icons.attach_money,
                     color: Colors.green,
+                    onTap: () => _openList(DashboardListType.paidVisits),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -114,6 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     icon: Icons.account_balance_wallet,
                     color: Colors.red,
+                    onTap: () => _openList(DashboardListType.outstandingVisits),
                   ),
                 ),
               ],
@@ -162,46 +176,52 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
   const _StatCard({
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                    ),
                   ),
-                ),
-                Icon(icon, color: color, size: 20),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-          ],
+                  Icon(icon, color: color, size: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

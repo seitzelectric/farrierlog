@@ -21,6 +21,7 @@ class VisitDetailScreen extends StatefulWidget {
 
 class _VisitDetailScreenState extends State<VisitDetailScreen> {
   late Visit _visit;
+  Client? _client;
   List<Horse> _horses = [];
   List<ServiceLine> _serviceLines = [];
   List<VisitPhoto> _photos = [];
@@ -40,9 +41,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     final serviceLines = await DatabaseService.getServiceLines(_visit.id!);
     final photos = await DatabaseService.getPhotos(_visit.id!);
     final invoices = await DatabaseService.getInvoicesForVisit(_visit.id!);
+    final client = await DatabaseService.getClient(_visit.clientId);
     if (mounted) {
       setState(() {
         if (visit != null) _visit = visit;
+        _client = client;
         _horses = horses;
         _serviceLines = serviceLines;
         _photos = photos;
@@ -429,6 +432,104 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     }
   }
 
+  Future<void> _editClientAddress() async {
+    final client = _client;
+    if (client == null) return;
+
+    final result = await showDialog<Client>(
+      context: context,
+      builder: (_) => ClientFormDialog(client: client),
+    );
+    if (result != null) {
+      await DatabaseService.updateClient(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _openVisitAddress() async {
+    final address = _client?.address.trim() ?? '';
+    if (address.isEmpty) return;
+
+    final launched = await AppUtils.openGoogleMapsSearch(address);
+    if (!mounted || launched) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open Google Maps')),
+    );
+  }
+
+  Widget _buildAddressCard() {
+    final address = _client?.address.trim() ?? '';
+
+    if (address.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_off_outlined,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'No address saved',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _editClientAddress,
+                icon: const Icon(Icons.edit_location_alt),
+                label: const Text('Edit Client'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.location_on_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Appointment Address',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(address),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _openVisitAddress,
+              icon: const Icon(Icons.directions),
+              label: const Text('Open in Google Maps'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showPhotoFullScreen(VisitPhoto photo) {
     Navigator.push(
       context,
@@ -539,6 +640,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            _buildAddressCard(),
             const SizedBox(height: 16),
             SectionHeader(title: 'Animals (${_horses.length})'),
             if (_horses.isEmpty)
