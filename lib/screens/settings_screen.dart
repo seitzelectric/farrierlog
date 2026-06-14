@@ -20,6 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   String? _logoPath;
+  bool _startCalendarWeekOnMonday = false;
   bool _exporting = false;
   bool _backingUp = false;
   bool _restoring = false;
@@ -40,6 +41,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _emailCtrl.text = await DatabaseService.getSetting('company_email');
 
     _logoPath = await DatabaseService.getSetting('company_logo');
+
+    _startCalendarWeekOnMonday =
+        await DatabaseService.getSetting('start_calendar_week_on_monday') ==
+            'true';
 
     if (_logoPath != null && _logoPath!.isEmpty) {
       _logoPath = null;
@@ -89,6 +94,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await DatabaseService.setSetting('company_email', _emailCtrl.text.trim());
 
     await DatabaseService.setSetting('company_logo', _logoPath ?? '');
+
+    await DatabaseService.setSetting(
+      'start_calendar_week_on_monday',
+      _startCalendarWeekOnMonday.toString(),
+    );
 
     InvoiceService.setCompanyInfo(
       CompanyInfo(
@@ -256,6 +266,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: const InputDecoration(
                 labelText: 'Email', border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 24),
+          Text('Calendar', style: Theme.of(context).textTheme.titleLarge),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Start calendar week on Monday'),
+            value: _startCalendarWeekOnMonday,
+            onChanged: (value) {
+              setState(() => _startCalendarWeekOnMonday = value);
+            },
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(

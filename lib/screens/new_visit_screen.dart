@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
@@ -165,28 +164,6 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
       createdAt: visit.createdAt,
     );
     await DatabaseService.generateRecurringChain(savedVisit, weeksAhead: 10);
-
-    if (!_isEditing) {
-      try {
-        final event = Event(
-          title: 'Farrier - ${_selectedClient!.fullName}',
-          description: _notesCtrl.text.trim().isEmpty
-              ? 'Farrier visit'
-              : _notesCtrl.text.trim(),
-          location: _selectedClient!.address,
-          startDate: _selectedDateTime,
-          endDate: _selectedDateTime.add(const Duration(hours: 1)),
-        );
-
-        await Add2Calendar.addEvent2Cal(event);
-      } catch (e) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Calendar event was not added: $e')),
-        );
-      }
-    }
 
     final created = await DatabaseService.getVisit(visitId);
     if (!mounted || created == null) return;

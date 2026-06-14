@@ -173,6 +173,14 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
     _loadData();
   }
 
+  Future<void> _openAnimal(HorseWithClientInfo animal) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => HorseDetailScreen(animal: animal)),
+    );
+    _loadData();
+  }
+
   Widget _buildEmptyState() {
     return EmptyState(
       icon: _emptyIcon,
@@ -236,7 +244,7 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _openClient(entry.client),
+              onTap: () => _openAnimal(entry),
             );
           },
         );

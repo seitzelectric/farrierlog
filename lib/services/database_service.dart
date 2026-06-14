@@ -338,6 +338,28 @@ class DatabaseService {
     return rows.map((r) => HorseWithClientInfo.fromMap(r)).toList();
   }
 
+  static Future<HorseWithClientInfo?> getHorseWithClientInfo(int id) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        horses.*,
+        clients.first_name AS client_first_name,
+        clients.last_name AS client_last_name,
+        clients.phone AS client_phone,
+        clients.email AS client_email,
+        clients.address AS client_address,
+        clients.notes AS client_notes,
+        clients.created_at AS client_created_at,
+        clients.updated_at AS client_updated_at
+      FROM horses
+      INNER JOIN clients ON clients.id = horses.client_id
+      WHERE horses.id = ?
+      LIMIT 1
+    ''', [id]);
+    if (rows.isEmpty) return null;
+    return HorseWithClientInfo.fromMap(rows.first);
+  }
+
   // ==================== VISIT OPERATIONS ====================
 
   static Future<int> insertVisit(Visit visit, List<int> horseIds) async {
@@ -474,6 +496,19 @@ class DatabaseService {
       WHERE visits.client_id = ?
       ORDER BY visits.datetime DESC
     ''', [clientId]);
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getVisitsForHorse(int horseId) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      INNER JOIN visit_horses ON visit_horses.visit_id = visits.id
+      WHERE visit_horses.horse_id = ?
+      ORDER BY visits.datetime DESC
+    ''', [horseId]);
     return rows.map((r) => Visit.fromMap(r)).toList();
   }
 
@@ -731,6 +766,46 @@ class DatabaseService {
       orderBy: 'created_at ASC',
     );
     return rows.map((r) => VisitPhoto.fromMap(r)).toList();
+  }
+
+  static Future<List<VisitPhotoWithVisit>> getPhotosForHorse(
+    int horseId,
+  ) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT
+        visit_photos.id AS photo_id,
+        visit_photos.visit_id AS photo_visit_id,
+        visit_photos.horse_id AS photo_horse_id,
+        visit_photos.path AS photo_path,
+        visit_photos.caption AS photo_caption,
+        visit_photos.include_on_invoice AS photo_include_on_invoice,
+        visit_photos.created_at AS photo_created_at,
+        visits.*,
+        clients.first_name,
+        clients.last_name
+      FROM visit_photos
+      INNER JOIN visits ON visits.id = visit_photos.visit_id
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visit_photos.horse_id = ?
+      ORDER BY visits.datetime DESC, visit_photos.created_at ASC
+    ''', [horseId]);
+
+    return rows.map((row) {
+      final photo = VisitPhoto.fromMap({
+        'id': row['photo_id'],
+        'visit_id': row['photo_visit_id'],
+        'horse_id': row['photo_horse_id'],
+        'path': row['photo_path'],
+        'caption': row['photo_caption'],
+        'include_on_invoice': row['photo_include_on_invoice'],
+        'created_at': row['photo_created_at'],
+      });
+      return VisitPhotoWithVisit(
+        photo: photo,
+        visit: Visit.fromMap(row),
+      );
+    }).toList();
   }
 
   static Future<List<VisitPhoto>> getPhotosForClient(int clientId) async {

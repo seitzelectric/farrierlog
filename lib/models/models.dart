@@ -310,6 +310,16 @@ class VisitPhoto {
       );
 }
 
+class VisitPhotoWithVisit {
+  final VisitPhoto photo;
+  final Visit visit;
+
+  const VisitPhotoWithVisit({
+    required this.photo,
+    required this.visit,
+  });
+}
+
 class InvoiceRecord {
   final int? id;
   final int visitId;

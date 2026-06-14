@@ -17,6 +17,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime? _selectedDay;
   Map<DateTime, List<Visit>> _visitsByDay = {};
   List<Visit> _selectedVisits = [];
+  bool _startWeekOnMonday = false;
   bool _loading = true;
 
   @override
@@ -31,6 +32,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final from = DateTime(focus.year, focus.month - 3, 1);
     final to = DateTime(focus.year, focus.month + 4, 0, 23, 59, 59);
     final visits = await DatabaseService.getVisits(from: from, to: to);
+    final startWeekOnMonday =
+        await DatabaseService.getSetting('start_calendar_week_on_monday') ==
+            'true';
     final map = <DateTime, List<Visit>>{};
 
     for (final visit in visits) {
@@ -46,6 +50,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       setState(() {
         _visitsByDay = map;
         _selectedVisits = _getVisitsForDay(_selectedDay!);
+        _startWeekOnMonday = startWeekOnMonday;
         _loading = false;
       });
     }
@@ -113,6 +118,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             firstDay: DateTime(2020),
             lastDay: DateTime(2035),
             focusedDay: _focusedDay,
+            startingDayOfWeek: _startWeekOnMonday
+                ? StartingDayOfWeek.monday
+                : StartingDayOfWeek.sunday,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: _onDaySelected,
             onPageChanged: (focusedDay) {

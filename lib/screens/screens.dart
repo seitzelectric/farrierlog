@@ -6,6 +6,7 @@ export 'client_list_screen.dart';
 export 'home_screen.dart';
 export 'calendar_screen.dart';
 export 'new_visit_screen.dart';
+export 'horse_detail_screen.dart';
 import 'new_visit_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
