@@ -90,11 +90,11 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
       case DashboardListType.animals:
         return 'Animals will appear here after they are added to clients.';
       case DashboardListType.upcomingVisits:
-        return 'No unpaid visits are scheduled in the next 30 days.';
+        return 'No visits are scheduled in the next 30 days.';
       case DashboardListType.pastDueVisits:
-        return 'All unpaid visits are current.';
+        return 'All visits are marked complete.';
       case DashboardListType.outstandingVisits:
-        return 'All visits are marked paid.';
+        return 'All completed visits have been paid.';
       case DashboardListType.paidVisits:
         return 'Paid visits will appear here after invoices or visits are marked paid.';
     }
@@ -134,7 +134,7 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
       case DashboardListType.pastDueVisits:
         return DatabaseService.getPastDueVisits();
       case DashboardListType.outstandingVisits:
-        return DatabaseService.getUnpaidVisits();
+        return DatabaseService.getUnpaidCompletedVisits();
       case DashboardListType.paidVisits:
         return DatabaseService.getPaidVisits();
       case DashboardListType.clients:

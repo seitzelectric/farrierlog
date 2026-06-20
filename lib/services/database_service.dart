@@ -6,7 +6,7 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 7;
+  static const int _dbVersion = 8;
 
   static String get databaseName => _dbName;
   static int get databaseVersion => _dbVersion;
@@ -80,6 +80,7 @@ class DatabaseService {
         datetime TEXT NOT NULL,
         notes TEXT NOT NULL DEFAULT '',
         paid INTEGER NOT NULL DEFAULT 0,
+        completed INTEGER NOT NULL DEFAULT 0,
         recurrence_weeks INTEGER,
         next_recurring_visit_id INTEGER,
         is_auto_generated INTEGER NOT NULL DEFAULT 0,
@@ -105,6 +106,9 @@ class DatabaseService {
         horse_id INTEGER,
         description TEXT NOT NULL,
         price REAL NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        is_group INTEGER NOT NULL DEFAULT 0,
+        group_label TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE,
         FOREIGN KEY (horse_id) REFERENCES horses(id) ON DELETE SET NULL
@@ -215,6 +219,23 @@ class DatabaseService {
     if (oldVersion < 7) {
       await db.execute(
           'ALTER TABLE visits ADD COLUMN is_auto_generated INTEGER NOT NULL DEFAULT 0');
+    }
+
+    if (oldVersion < 8) {
+      await db.execute(
+          "ALTER TABLE service_lines ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+      await db.execute(
+          "ALTER TABLE service_lines ADD COLUMN is_group INTEGER NOT NULL DEFAULT 0");
+      await db.execute(
+          "ALTER TABLE service_lines ADD COLUMN group_label TEXT");
+
+      await db.execute(
+          'ALTER TABLE visits ADD COLUMN completed INTEGER NOT NULL DEFAULT 0');
+      final now = DateTime.now().toIso8601String();
+      await db.execute(
+        'UPDATE visits SET completed = 1 WHERE datetime < ?',
+        [now],
+      );
     }
   }
 
@@ -439,7 +460,7 @@ class DatabaseService {
       SELECT visits.*, clients.first_name, clients.last_name
       FROM visits
       INNER JOIN clients ON clients.id = visits.client_id
-      WHERE visits.paid = 0 AND visits.datetime < ?
+      WHERE visits.completed = 0 AND visits.datetime < ?
       ORDER BY visits.datetime ASC
     ''', [DateTime.now().toIso8601String()]);
     return rows.map((r) => Visit.fromMap(r)).toList();
@@ -452,8 +473,7 @@ class DatabaseService {
       SELECT visits.*, clients.first_name, clients.last_name
       FROM visits
       INNER JOIN clients ON clients.id = visits.client_id
-      WHERE visits.paid = 0
-        AND visits.datetime >= ?
+      WHERE visits.datetime >= ?
         AND visits.datetime <= ?
       ORDER BY visits.datetime ASC
     ''', [
@@ -470,6 +490,18 @@ class DatabaseService {
       FROM visits
       INNER JOIN clients ON clients.id = visits.client_id
       WHERE visits.paid = 0
+      ORDER BY visits.datetime ASC
+    ''');
+    return rows.map((r) => Visit.fromMap(r)).toList();
+  }
+
+  static Future<List<Visit>> getUnpaidCompletedVisits() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT visits.*, clients.first_name, clients.last_name
+      FROM visits
+      INNER JOIN clients ON clients.id = visits.client_id
+      WHERE visits.completed = 1 AND visits.paid = 0
       ORDER BY visits.datetime ASC
     ''');
     return rows.map((r) => Visit.fromMap(r)).toList();
@@ -529,6 +561,16 @@ class DatabaseService {
     await db.update(
       'visits',
       {'paid': paid ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [visitId],
+    );
+  }
+
+  static Future<void> setVisitCompleted(int visitId, bool completed) async {
+    final db = await database;
+    await db.update(
+      'visits',
+      {'completed': completed ? 1 : 0},
       where: 'id = ?',
       whereArgs: [visitId],
     );
@@ -951,19 +993,19 @@ class DatabaseService {
         0;
     final now = DateTime.now();
     final upcomingVisits = Sqflite.firstIntValue(await db.rawQuery(
-            "SELECT COUNT(*) FROM visits WHERE datetime >= ? AND datetime <= ? AND paid = 0",
+            "SELECT COUNT(*) FROM visits WHERE datetime >= ? AND datetime <= ?",
             [
               now.toIso8601String(),
               now.add(const Duration(days: 30)).toIso8601String(),
             ])) ??
         0;
     final pastDueVisits = Sqflite.firstIntValue(await db.rawQuery(
-            "SELECT COUNT(*) FROM visits WHERE paid = 0 AND datetime < ?",
+            "SELECT COUNT(*) FROM visits WHERE completed = 0 AND datetime < ?",
             [now.toIso8601String()])) ??
         0;
 
     final revenueResult = await db.rawQuery('''
-      SELECT COALESCE(SUM(sl.price), 0) as total
+      SELECT COALESCE(SUM(sl.price * sl.quantity), 0) as total
       FROM service_lines sl
       INNER JOIN visits v ON v.id = sl.visit_id
       WHERE v.paid = 1
@@ -972,10 +1014,10 @@ class DatabaseService {
         (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     final outstandingResult = await db.rawQuery('''
-      SELECT COALESCE(SUM(sl.price), 0) as total
+      SELECT COALESCE(SUM(sl.price * sl.quantity), 0) as total
       FROM service_lines sl
       INNER JOIN visits v ON v.id = sl.visit_id
-      WHERE v.paid = 0
+      WHERE v.completed = 1 AND v.paid = 0
     ''');
     final outstandingRevenue =
         (outstandingResult.first['total'] as num?)?.toDouble() ?? 0.0;

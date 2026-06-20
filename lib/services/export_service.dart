@@ -127,7 +127,7 @@ class ExportService {
       SELECT visits.*,
              clients.first_name,
              clients.last_name,
-             COALESCE(SUM(service_lines.price), 0) AS total
+             COALESCE(SUM(service_lines.price * service_lines.quantity), 0) AS total
       FROM visits
       INNER JOIN clients ON clients.id = visits.client_id
       LEFT JOIN service_lines ON service_lines.visit_id = visits.id
@@ -192,11 +192,17 @@ class ExportService {
         'animal_name',
         'description',
         'price',
+        'quantity',
+        'is_group',
+        'group_label',
+        'total',
         'created_at',
       ],
       ...rows.map((row) {
         final firstName = _value(row['first_name']);
         final lastName = _value(row['last_name']);
+        final price = (row['price'] as num?)?.toDouble() ?? 0;
+        final quantity = (row['quantity'] as num?)?.toInt() ?? 1;
         return [
           _value(row['id']),
           _value(row['visit_id']),
@@ -207,6 +213,10 @@ class ExportService {
           _value(row['animal_name']),
           _value(row['description']),
           _money(row['price']),
+          _value(quantity),
+          _bool(row['is_group']),
+          _value(row['group_label']),
+          (price * quantity).toStringAsFixed(2),
           _value(row['created_at']),
         ];
       }),

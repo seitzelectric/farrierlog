@@ -475,7 +475,10 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _descCtrl;
   late final TextEditingController _priceCtrl;
+  late final TextEditingController _groupLabelCtrl;
+  late final TextEditingController _quantityCtrl;
   int? _selectedHorseId;
+  late bool _isGroup;
 
   bool get isEditing => widget.serviceLine != null;
 
@@ -489,14 +492,30 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
           ? widget.serviceLine!.price.toString()
           : '',
     );
+    _groupLabelCtrl =
+        TextEditingController(text: widget.serviceLine?.groupLabel ?? '');
+    _quantityCtrl = TextEditingController(
+      text: (widget.serviceLine?.quantity ?? 1).toString(),
+    );
     _selectedHorseId = widget.serviceLine?.horseId;
+    _isGroup = widget.serviceLine?.isGroup ?? false;
+    _priceCtrl.addListener(() => setState(() {}));
+    _quantityCtrl.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _descCtrl.dispose();
     _priceCtrl.dispose();
+    _groupLabelCtrl.dispose();
+    _quantityCtrl.dispose();
     super.dispose();
+  }
+
+  double get _previewTotal {
+    final price = double.tryParse(_priceCtrl.text.trim()) ?? 0;
+    final quantity = int.tryParse(_quantityCtrl.text.trim()) ?? 0;
+    return price * quantity;
   }
 
   @override
@@ -505,40 +524,92 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
       title: Text(isEditing ? 'Edit Service Line' : 'Add Service Line'),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.horses.isNotEmpty)
-              DropdownButtonFormField<int?>(
-                value: _selectedHorseId,
-                decoration: const InputDecoration(labelText: 'Animal'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('General')),
-                  ...widget.horses.map((h) =>
-                      DropdownMenuItem(value: h.id, child: Text(h.name))),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Single Animal')),
+                  ButtonSegment(value: true, label: Text('Group / Headcount')),
                 ],
-                onChanged: (v) => _selectedHorseId = v,
+                selected: {_isGroup},
+                onSelectionChanged: (selection) =>
+                    setState(() => _isGroup = selection.first),
               ),
-            TextFormField(
-              controller: _descCtrl,
-              decoration: const InputDecoration(labelText: 'Service'),
-              validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null,
-            ),
-            TextFormField(
-              controller: _priceCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Price',
-                prefixText: '\$',
+              const SizedBox(height: 12),
+              if (!_isGroup) ...[
+                if (widget.horses.isNotEmpty)
+                  DropdownButtonFormField<int?>(
+                    value: _selectedHorseId,
+                    decoration: const InputDecoration(labelText: 'Animal'),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('General')),
+                      ...widget.horses.map((h) =>
+                          DropdownMenuItem(value: h.id, child: Text(h.name))),
+                    ],
+                    onChanged: (v) => setState(() => _selectedHorseId = v),
+                  ),
+              ] else ...[
+                TextFormField(
+                  controller: _groupLabelCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Group description',
+                    hintText: 'e.g. Back pasture herd, Smith Ranch',
+                  ),
+                  validator: (v) {
+                    if (!_isGroup) return null;
+                    return (v?.trim().isEmpty ?? true) ? 'Required' : null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _quantityCtrl,
+                  decoration:
+                      const InputDecoration(labelText: 'Number of animals'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    if (!_isGroup) return null;
+                    final parsed = int.tryParse(v?.trim() ?? '');
+                    if (parsed == null || parsed < 1) {
+                      return 'Enter a whole number of 1 or more';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+              TextFormField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(labelText: 'Service'),
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Required';
-                if (double.tryParse(v) == null) return 'Invalid number';
-                return null;
-              },
-            ),
-          ],
+              TextFormField(
+                controller: _priceCtrl,
+                decoration: InputDecoration(
+                  labelText: _isGroup ? 'Price per animal' : 'Price',
+                  prefixText: '\$',
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (double.tryParse(v) == null) return 'Invalid number';
+                  return null;
+                },
+              ),
+              if (_isGroup) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Total: ${AppUtils.formatCurrency(_previewTotal)}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -549,21 +620,39 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              Navigator.pop(
-                context,
-                ServiceLine(
-                  id: widget.serviceLine?.id,
-                  visitId: widget.visitId,
-                  horseId: _selectedHorseId,
-                  horseName: _selectedHorseId != null
-                      ? widget.horses
-                          .firstWhere((h) => h.id == _selectedHorseId)
-                          .name
-                      : 'General',
-                  description: _descCtrl.text.trim(),
-                  price: double.parse(_priceCtrl.text.trim()),
-                ),
-              );
+              final price = double.parse(_priceCtrl.text.trim());
+              if (_isGroup) {
+                Navigator.pop(
+                  context,
+                  ServiceLine(
+                    id: widget.serviceLine?.id,
+                    visitId: widget.visitId,
+                    horseId: null,
+                    horseName: 'Group',
+                    description: _descCtrl.text.trim(),
+                    price: price,
+                    quantity: int.parse(_quantityCtrl.text.trim()),
+                    isGroup: true,
+                    groupLabel: _groupLabelCtrl.text.trim(),
+                  ),
+                );
+              } else {
+                Navigator.pop(
+                  context,
+                  ServiceLine(
+                    id: widget.serviceLine?.id,
+                    visitId: widget.visitId,
+                    horseId: _selectedHorseId,
+                    horseName: _selectedHorseId != null
+                        ? widget.horses
+                            .firstWhere((h) => h.id == _selectedHorseId)
+                            .name
+                        : 'General',
+                    description: _descCtrl.text.trim(),
+                    price: price,
+                  ),
+                );
+              }
             }
           },
           child: Text(isEditing ? 'Update' : 'Save'),

@@ -76,7 +76,7 @@ class InvoiceService {
     await loadCompanyInfo();
 
     final pdf = pw.Document();
-    final total = serviceLines.fold(0.0, (sum, line) => sum + line.price);
+    final total = serviceLines.fold(0.0, (sum, line) => sum + line.lineTotal);
     final invoicePhotos = photos.where((p) => p.includeOnInvoice).toList();
     final company = _companyInfo;
 
@@ -156,12 +156,17 @@ class InvoiceService {
                   _tableCell('Name', bold: true),
                   _tableCell('Description', bold: true),
                   _tableCell('Service', bold: true),
+                  _tableCell('Qty', bold: true, align: pw.TextAlign.right),
                   _tableCell('Price', bold: true, align: pw.TextAlign.right),
                 ],
               ),
               ...serviceLines.map((line) => pw.TableRow(
                     children: [
-                      _tableCell(line.horseName),
+                      _tableCell(line.isGroup
+                          ? (line.groupLabel?.isNotEmpty == true
+                              ? line.groupLabel!
+                              : 'Group')
+                          : line.horseName),
                       _tableCell(
                         '${line.horseBreed.isNotEmpty ? line.horseBreed : ''}'
                         '${line.horseBreed.isNotEmpty && line.horseColor.isNotEmpty ? ' / ' : ''}'
@@ -169,7 +174,13 @@ class InvoiceService {
                       ),
                       _tableCell(line.description),
                       _tableCell(
-                        AppUtils.formatCurrency(line.price),
+                        '${line.quantity}',
+                        align: pw.TextAlign.right,
+                      ),
+                      _tableCell(
+                        line.quantity != 1
+                            ? '${AppUtils.formatCurrency(line.price)} × ${line.quantity} = ${AppUtils.formatCurrency(line.lineTotal)}'
+                            : AppUtils.formatCurrency(line.lineTotal),
                         align: pw.TextAlign.right,
                       ),
                     ],
@@ -178,6 +189,7 @@ class InvoiceService {
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
                   _tableCell('Total', bold: true),
+                  _tableCell(''),
                   _tableCell(''),
                   _tableCell(''),
                   _tableCell(AppUtils.formatCurrency(total),

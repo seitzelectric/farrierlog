@@ -252,16 +252,25 @@ class ServiceLineCard extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-          child: Icon(Icons.handyman,
+          child: Icon(
+              line.isGroup ? Icons.groups : Icons.handyman,
               color: Theme.of(context).colorScheme.onSecondaryContainer),
         ),
-        title: Text(line.description),
-        subtitle: Text(line.horseName),
+        title: Text(line.isGroup
+            ? (line.groupLabel?.isNotEmpty == true
+                ? line.groupLabel!
+                : 'Group')
+            : line.description),
+        subtitle: line.isGroup
+            ? Text('${line.description} · × ${line.quantity} animals')
+            : Text(line.horseName),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              AppUtils.formatCurrency(line.price),
+              line.isGroup
+                  ? '${AppUtils.formatCurrency(line.price)} × ${line.quantity} = ${AppUtils.formatCurrency(line.lineTotal)}'
+                  : AppUtils.formatCurrency(line.lineTotal),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             if (onEdit != null || onDelete != null)
