@@ -20,6 +20,7 @@ class ExportService {
       'animals.csv': await _animalsRows(db),
       'visits.csv': await _visitsRows(db),
       'service_lines.csv': await _serviceLineRows(db),
+      'visit_charges.csv': await _visitChargeRows(db),
       'invoice_summary.csv': await _invoiceSummaryRows(db),
     };
 
@@ -217,6 +218,55 @@ class ExportService {
           _bool(row['is_group']),
           _value(row['group_label']),
           (price * quantity).toStringAsFixed(2),
+          _value(row['created_at']),
+        ];
+      }),
+    ];
+  }
+
+  static Future<List<List<String>>> _visitChargeRows(Database db) async {
+    final rows = await db.rawQuery('''
+      SELECT visit_charges.*,
+             visits.client_id,
+             visits.datetime,
+             clients.first_name,
+             clients.last_name
+      FROM visit_charges
+      INNER JOIN visits ON visits.id = visit_charges.visit_id
+      INNER JOIN clients ON clients.id = visits.client_id
+      ORDER BY visits.datetime ASC, visit_charges.id ASC
+    ''');
+
+    return [
+      [
+        'charge_id',
+        'visit_id',
+        'visit_date',
+        'client_id',
+        'client_name',
+        'type',
+        'description',
+        'quantity',
+        'rate',
+        'total',
+        'created_at',
+      ],
+      ...rows.map((row) {
+        final firstName = _value(row['first_name']);
+        final lastName = _value(row['last_name']);
+        final quantity = (row['quantity'] as num?)?.toDouble() ?? 1;
+        final rate = (row['rate'] as num?)?.toDouble() ?? 0;
+        return [
+          _value(row['id']),
+          _value(row['visit_id']),
+          _dateOnly(_value(row['datetime'])),
+          _value(row['client_id']),
+          '$firstName $lastName'.trim(),
+          _value(row['type']),
+          _value(row['description']),
+          _value(quantity),
+          _money(row['rate']),
+          (quantity * rate).toStringAsFixed(2),
           _value(row['created_at']),
         ];
       }),

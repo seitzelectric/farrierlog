@@ -197,6 +197,7 @@ class BackupService {
       'visits',
       'visit_horses',
       'service_lines',
+      'visit_charges',
       'visit_photos',
       'invoices',
       'app_settings',

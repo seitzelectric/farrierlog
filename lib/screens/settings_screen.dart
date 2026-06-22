@@ -19,6 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _addressCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _mileageRateCtrl = TextEditingController();
   String? _logoPath;
   bool _startCalendarWeekOnMonday = false;
   bool _exporting = false;
@@ -46,6 +47,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await DatabaseService.getSetting('start_calendar_week_on_monday') ==
             'true';
 
+    final mileageRate = await DatabaseService.getMileageRate();
+    _mileageRateCtrl.text = mileageRate.toString();
+
     if (_logoPath != null && _logoPath!.isEmpty) {
       _logoPath = null;
     }
@@ -71,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _addressCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
+    _mileageRateCtrl.dispose();
     super.dispose();
   }
 
@@ -99,6 +104,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'start_calendar_week_on_monday',
       _startCalendarWeekOnMonday.toString(),
     );
+
+    final mileageRate = double.tryParse(_mileageRateCtrl.text.trim()) ?? 0.67;
+    await DatabaseService.setMileageRate(mileageRate);
 
     InvoiceService.setCompanyInfo(
       CompanyInfo(
@@ -266,6 +274,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: const InputDecoration(
                 labelText: 'Email', border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 24),
+          Text('Mileage', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text('Default rate used when adding mileage or transport charges',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _mileageRateCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Mileage Rate (per mile)',
+              prefixText: '\$',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: 24),
           Text('Calendar', style: Theme.of(context).textTheme.titleLarge),

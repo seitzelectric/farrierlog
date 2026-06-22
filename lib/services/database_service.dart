@@ -6,7 +6,7 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 8;
+  static const int _dbVersion = 9;
 
   static String get databaseName => _dbName;
   static int get databaseVersion => _dbVersion;
@@ -116,6 +116,19 @@ class DatabaseService {
     ''');
 
     await db.execute('''
+      CREATE TABLE visit_charges(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        visit_id INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'other',
+        description TEXT NOT NULL DEFAULT '',
+        quantity REAL NOT NULL DEFAULT 1,
+        rate REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE visit_photos(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         visit_id INTEGER NOT NULL,
@@ -153,6 +166,8 @@ class DatabaseService {
         'CREATE INDEX idx_visits_next_recurring ON visits(next_recurring_visit_id)');
     await db.execute(
         'CREATE INDEX idx_service_lines_visit ON service_lines(visit_id)');
+    await db.execute(
+        'CREATE INDEX idx_visit_charges_visit ON visit_charges(visit_id)');
     await db.execute(
         'CREATE INDEX idx_visit_photos_visit ON visit_photos(visit_id)');
     await db.execute('CREATE INDEX idx_invoices_visit ON invoices(visit_id)');
@@ -236,6 +251,23 @@ class DatabaseService {
         'UPDATE visits SET completed = 1 WHERE datetime < ?',
         [now],
       );
+    }
+
+    if (oldVersion < 9) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS visit_charges(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          visit_id INTEGER NOT NULL,
+          type TEXT NOT NULL DEFAULT 'other',
+          description TEXT NOT NULL DEFAULT '',
+          quantity REAL NOT NULL DEFAULT 1,
+          rate REAL NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_visit_charges_visit ON visit_charges(visit_id)');
     }
   }
 
@@ -771,6 +803,42 @@ class DatabaseService {
     return rows.map((r) => ServiceLine.fromMap(r)).toList();
   }
 
+  // ==================== VISIT CHARGE OPERATIONS ====================
+
+  static Future<List<VisitCharge>> getVisitCharges(int visitId) async {
+    final db = await database;
+    final rows = await db.query('visit_charges',
+        where: 'visit_id = ?', whereArgs: [visitId], orderBy: 'created_at ASC');
+    return rows.map((r) => VisitCharge.fromMap(r)).toList();
+  }
+
+  static Future<int> insertVisitCharge(VisitCharge charge) async {
+    final db = await database;
+    return await db.insert('visit_charges', charge.toMap());
+  }
+
+  static Future<void> updateVisitCharge(VisitCharge charge) async {
+    final db = await database;
+    await db.update('visit_charges', charge.toMap(),
+        where: 'id = ?', whereArgs: [charge.id]);
+  }
+
+  static Future<int> deleteVisitCharge(int id) async {
+    final db = await database;
+    return await db.delete('visit_charges', where: 'id = ?', whereArgs: [id]);
+  }
+
+  static const String mileageRateSettingKey = 'mileage_rate_per_mile';
+
+  static Future<double> getMileageRate() async {
+    final value = await getSetting(mileageRateSettingKey, defaultValue: '0.67');
+    return double.tryParse(value) ?? 0.67;
+  }
+
+  static Future<void> setMileageRate(double rate) async {
+    await setSetting(mileageRateSettingKey, rate.toString());
+  }
+
   // ==================== PHOTO OPERATIONS ====================
 
   static Future<int> insertPhoto(VisitPhoto photo) async {
@@ -830,7 +898,7 @@ class DatabaseService {
       INNER JOIN visits ON visits.id = visit_photos.visit_id
       INNER JOIN clients ON clients.id = visits.client_id
       WHERE visit_photos.horse_id = ?
-      ORDER BY visits.datetime DESC, visit_photos.created_at ASC
+      ORDER BY visits.datetime ASC, visit_photos.created_at ASC
     ''', [horseId]);
 
     return rows.map((row) {
@@ -1005,7 +1073,11 @@ class DatabaseService {
         0;
 
     final revenueResult = await db.rawQuery('''
-      SELECT COALESCE(SUM(sl.price * sl.quantity), 0) as total
+      SELECT
+        COALESCE(SUM(sl.price * sl.quantity), 0) +
+        COALESCE((SELECT SUM(vc.quantity * vc.rate) FROM visit_charges vc
+                  INNER JOIN visits vv ON vv.id = vc.visit_id
+                  WHERE vv.paid = 1), 0) as total
       FROM service_lines sl
       INNER JOIN visits v ON v.id = sl.visit_id
       WHERE v.paid = 1
@@ -1014,7 +1086,11 @@ class DatabaseService {
         (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     final outstandingResult = await db.rawQuery('''
-      SELECT COALESCE(SUM(sl.price * sl.quantity), 0) as total
+      SELECT
+        COALESCE(SUM(sl.price * sl.quantity), 0) +
+        COALESCE((SELECT SUM(vc.quantity * vc.rate) FROM visit_charges vc
+                  INNER JOIN visits vv ON vv.id = vc.visit_id
+                  WHERE vv.completed = 1 AND vv.paid = 0), 0) as total
       FROM service_lines sl
       INNER JOIN visits v ON v.id = sl.visit_id
       WHERE v.completed = 1 AND v.paid = 0

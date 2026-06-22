@@ -70,13 +70,17 @@ class InvoiceService {
     required Visit visit,
     required Client client,
     required List<ServiceLine> serviceLines,
+    List<VisitCharge> charges = const [],
     required List<VisitPhoto> photos,
     String? invoiceNumber,
   }) async {
     await loadCompanyInfo();
 
     final pdf = pw.Document();
-    final total = serviceLines.fold(0.0, (sum, line) => sum + line.lineTotal);
+    final serviceLinesTotal =
+        serviceLines.fold(0.0, (sum, line) => sum + line.lineTotal);
+    final chargesTotal = charges.fold(0.0, (sum, c) => sum + c.total);
+    final total = serviceLinesTotal + chargesTotal;
     final invoicePhotos = photos.where((p) => p.includeOnInvoice).toList();
     final company = _companyInfo;
 
@@ -188,16 +192,74 @@ class InvoiceService {
               pw.TableRow(
                 decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                 children: [
-                  _tableCell('Total', bold: true),
+                  _tableCell(charges.isNotEmpty ? 'Subtotal' : 'Total',
+                      bold: true),
                   _tableCell(''),
                   _tableCell(''),
                   _tableCell(''),
-                  _tableCell(AppUtils.formatCurrency(total),
-                      bold: true, align: pw.TextAlign.right),
+                  _tableCell(
+                      AppUtils.formatCurrency(
+                          charges.isNotEmpty ? serviceLinesTotal : total),
+                      bold: true,
+                      align: pw.TextAlign.right),
                 ],
               ),
             ],
           ),
+
+          if (charges.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            pw.Text('Travel & Incidentals',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 8),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    _tableCell('Description', bold: true),
+                    _tableCell('Detail', bold: true),
+                    _tableCell('Amount', bold: true, align: pw.TextAlign.right),
+                  ],
+                ),
+                ...charges.map((charge) => pw.TableRow(
+                      children: [
+                        _tableCell(charge.description),
+                        _tableCell(
+                          charge.type.isMileageBased
+                              ? '${AppUtils.formatCurrency(charge.rate)}/mi × ${charge.quantity} mi'
+                              : '',
+                        ),
+                        _tableCell(
+                          AppUtils.formatCurrency(charge.total),
+                          align: pw.TextAlign.right,
+                        ),
+                      ],
+                    )),
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                  children: [
+                    _tableCell('Subtotal', bold: true),
+                    _tableCell(''),
+                    _tableCell(AppUtils.formatCurrency(chargesTotal),
+                        bold: true, align: pw.TextAlign.right),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'Total: ${AppUtils.formatCurrency(total)}',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          ],
+
           pw.SizedBox(height: 16),
 
           // Payment Status

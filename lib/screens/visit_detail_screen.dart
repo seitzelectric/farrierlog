@@ -26,6 +26,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   Client? _client;
   List<Horse> _horses = [];
   List<ServiceLine> _serviceLines = [];
+  List<VisitCharge> _charges = [];
   List<VisitPhoto> _photos = [];
   List<InvoiceRecord> _invoices = [];
   bool _loading = true;
@@ -41,6 +42,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     final visit = await DatabaseService.getVisit(_visit.id!);
     final horses = await DatabaseService.getHorsesForVisit(_visit.id!);
     final serviceLines = await DatabaseService.getServiceLines(_visit.id!);
+    final charges = await DatabaseService.getVisitCharges(_visit.id!);
     final photos = await DatabaseService.getPhotos(_visit.id!);
     final invoices = await DatabaseService.getInvoicesForVisit(_visit.id!);
     final client = await DatabaseService.getClient(_visit.clientId);
@@ -50,6 +52,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
         _client = client;
         _horses = horses;
         _serviceLines = serviceLines;
+        _charges = charges;
         _photos = photos;
         _invoices = invoices;
         _loading = false;
@@ -57,8 +60,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     }
   }
 
-  double get _total =>
+  double get _serviceLinesTotal =>
       _serviceLines.fold(0.0, (sum, line) => sum + line.lineTotal);
+  double get _chargesTotal =>
+      _charges.fold(0.0, (sum, c) => sum + c.total);
+  double get _total => _serviceLinesTotal + _chargesTotal;
 
   Future<void> _togglePaid(bool value) async {
     final wasPaid = _visit.paid;
@@ -165,6 +171,49 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     }
   }
 
+  Future<void> _addCharge() async {
+    final mileageRate = await DatabaseService.getMileageRate();
+    final result = await showDialog<VisitCharge>(
+      context: context,
+      builder: (_) => VisitChargeDialog(
+        visitId: _visit.id!,
+        defaultMileageRate: mileageRate,
+      ),
+    );
+    if (result != null) {
+      await DatabaseService.insertVisitCharge(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _editCharge(VisitCharge charge) async {
+    final mileageRate = await DatabaseService.getMileageRate();
+    final result = await showDialog<VisitCharge>(
+      context: context,
+      builder: (_) => VisitChargeDialog(
+        visitId: _visit.id!,
+        existingCharge: charge,
+        defaultMileageRate: mileageRate,
+      ),
+    );
+    if (result != null) {
+      await DatabaseService.updateVisitCharge(result);
+      _loadData();
+    }
+  }
+
+  Future<void> _deleteCharge(VisitCharge charge) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Charge',
+      message: 'Remove "${charge.description}"?',
+    );
+    if (confirmed == true) {
+      await DatabaseService.deleteVisitCharge(charge.id!);
+      _loadData();
+    }
+  }
+
   Future<void> _addPhoto() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.camera);
@@ -172,7 +221,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
 
     final captionCtrl = TextEditingController();
     final includeOnInvoice = ValueNotifier<bool>(true);
-    int? horseId = _horses.length == 1 ? _horses.first.id : null;
+    final selectedHorseIds = Set<int>.from(_horses.map((h) => h.id!));
 
     if (mounted) {
       final saved = await showDialog<bool>(
@@ -186,20 +235,27 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                 children: [
                   Image.file(File(image.path), height: 150, fit: BoxFit.cover),
                   const SizedBox(height: 12),
-                  if (_horses.isNotEmpty)
-                    DropdownButtonFormField<int?>(
-                      value: horseId,
-                      decoration: const InputDecoration(labelText: 'Animal'),
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text('None')),
-                        ..._horses.map((h) => DropdownMenuItem(
-                              value: h.id,
-                              child: Text(h.name),
-                            )),
-                      ],
-                      onChanged: (v) => setDialogState(() => horseId = v),
-                    ),
+                  if (_horses.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text('Tag to animal(s):',
+                        style: TextStyle(fontWeight: FontWeight.w500)),
+                    ..._horses.map((h) => StatefulBuilder(
+                          builder: (ctx, setCheckState) => CheckboxListTile(
+                            dense: true,
+                            title: Text(h.name),
+                            value: selectedHorseIds.contains(h.id),
+                            onChanged: (checked) {
+                              setCheckState(() {
+                                if (checked == true) {
+                                  selectedHorseIds.add(h.id!);
+                                } else {
+                                  selectedHorseIds.remove(h.id);
+                                }
+                              });
+                            },
+                          ),
+                        )),
+                  ],
                   TextField(
                     controller: captionCtrl,
                     decoration: const InputDecoration(labelText: 'Caption'),
@@ -231,13 +287,26 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
 
       if (saved == true) {
         final durablePath = await _copyPhotoToDocuments(image);
-        await DatabaseService.insertPhoto(VisitPhoto(
-          visitId: _visit.id!,
-          horseId: horseId,
-          path: durablePath,
-          caption: captionCtrl.text.trim(),
-          includeOnInvoice: includeOnInvoice.value,
-        ));
+
+        if (selectedHorseIds.isEmpty) {
+          await DatabaseService.insertPhoto(VisitPhoto(
+            visitId: _visit.id!,
+            horseId: null,
+            path: durablePath,
+            caption: captionCtrl.text.trim(),
+            includeOnInvoice: includeOnInvoice.value,
+          ));
+        } else {
+          for (final horseId in selectedHorseIds) {
+            await DatabaseService.insertPhoto(VisitPhoto(
+              visitId: _visit.id!,
+              horseId: horseId,
+              path: durablePath,
+              caption: captionCtrl.text.trim(),
+              includeOnInvoice: includeOnInvoice.value,
+            ));
+          }
+        }
         _loadData();
       }
       captionCtrl.dispose();
@@ -302,6 +371,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
         visit: _visit,
         client: client,
         serviceLines: _serviceLines,
+        charges: _charges,
         photos: _photos,
         invoiceNumber: invoiceNumber,
       );
@@ -639,7 +709,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       appBar: AppBar(
         title: Text(_visit.clientName),
         actions: [
-          if (_serviceLines.isNotEmpty)
+          if (_serviceLines.isNotEmpty || _charges.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.receipt_long),
               tooltip: _invoices.isEmpty ? 'Create Invoice' : 'View Invoice',
@@ -766,30 +836,102 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                 padding: EdgeInsets.all(16),
                 child: Text('No service lines yet'),
               )
-            else ...[
+            else
               ..._serviceLines.map((line) => ServiceLineCard(
                     line: line,
                     onEdit: () => _editServiceLine(line),
                     onDelete: () => _deleteServiceLine(line),
                   )),
+            const SizedBox(height: 16),
+            SectionHeader(
+              title: 'Travel & Incidentals',
+              onAdd: _addCharge,
+              addLabel: 'Add Charge',
+            ),
+            if (_charges.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No travel or incidental charges yet'),
+              )
+            else
+              ..._charges.map((charge) => Card(
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondaryContainer,
+                        child: Icon(
+                          charge.type.icon,
+                          color:
+                              Theme.of(context).colorScheme.onSecondaryContainer,
+                        ),
+                      ),
+                      title: Text(charge.description),
+                      subtitle: charge.type.isMileageBased
+                          ? Text(
+                              '${charge.quantity} mi @ ${AppUtils.formatCurrency(charge.rate)}/mi')
+                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            AppUtils.formatCurrency(charge.total),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') _editCharge(charge);
+                              if (value == 'delete') _deleteCharge(charge);
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  )),
+            if (_serviceLines.isNotEmpty || _charges.isNotEmpty) ...[
               const Divider(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Total',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            )),
-                    Text(
-                      AppUtils.formatCurrency(_total),
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _visit.paid
-                                ? Colors.green
-                                : Theme.of(context).colorScheme.primary,
-                          ),
+                    if (_charges.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          'Services: ${AppUtils.formatCurrency(_serviceLinesTotal)} '
+                          '· Travel & Incidentals: ${AppUtils.formatCurrency(_chargesTotal)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total',
+                            style:
+                                Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    )),
+                        Text(
+                          AppUtils.formatCurrency(_total),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: _visit.paid
+                                        ? Colors.green
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -810,7 +952,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             const SizedBox(height: 16),
             SectionHeader(
               title: 'Invoice History',
-              onAdd: _serviceLines.isNotEmpty && _invoices.isEmpty
+              onAdd: (_serviceLines.isNotEmpty || _charges.isNotEmpty) &&
+                      _invoices.isEmpty
                   ? _generateInvoice
                   : null,
               addLabel: 'Create Invoice',
@@ -818,8 +961,9 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             if (_invoices.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: _serviceLines.isEmpty
-                    ? const Text('Add service lines before creating an invoice')
+                child: _serviceLines.isEmpty && _charges.isEmpty
+                    ? const Text(
+                        'Add service lines or charges before creating an invoice')
                     : ElevatedButton.icon(
                         onPressed: _generateInvoice,
                         icon: const Icon(Icons.receipt_long),

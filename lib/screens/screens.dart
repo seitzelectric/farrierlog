@@ -662,6 +662,226 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
   }
 }
 
+// ==================== VISIT CHARGE DIALOG ====================
+
+class VisitChargeDialog extends StatefulWidget {
+  final int visitId;
+  final VisitCharge? existingCharge;
+  final double defaultMileageRate;
+
+  const VisitChargeDialog({
+    super.key,
+    required this.visitId,
+    this.existingCharge,
+    this.defaultMileageRate = 0.67,
+  });
+
+  @override
+  State<VisitChargeDialog> createState() => _VisitChargeDialogState();
+}
+
+class _VisitChargeDialogState extends State<VisitChargeDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _quantityCtrl;
+  late final TextEditingController _rateCtrl;
+  late final TextEditingController _amountCtrl;
+  late ChargeType _type;
+
+  bool get isEditing => widget.existingCharge != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existingCharge;
+    _type = existing?.type ?? ChargeType.mileage;
+    _descCtrl = TextEditingController(
+      text: existing?.description ?? _defaultDescription(_type),
+    );
+    _quantityCtrl = TextEditingController(
+      text: existing != null && existing.type.isMileageBased
+          ? existing.quantity.toString()
+          : '',
+    );
+    _rateCtrl = TextEditingController(
+      text: existing != null && existing.type.isMileageBased
+          ? existing.rate.toString()
+          : widget.defaultMileageRate.toString(),
+    );
+    _amountCtrl = TextEditingController(
+      text: existing != null && !existing.type.isMileageBased
+          ? existing.rate.toString()
+          : '',
+    );
+    _quantityCtrl.addListener(() => setState(() {}));
+    _rateCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    _quantityCtrl.dispose();
+    _rateCtrl.dispose();
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  String _defaultDescription(ChargeType type) {
+    switch (type) {
+      case ChargeType.mileage:
+        return 'Mileage';
+      case ChargeType.transport:
+        return 'Transport';
+      case ChargeType.tolls:
+        return 'Tolls';
+      case ChargeType.reimbursement:
+        return 'Reimbursement';
+      case ChargeType.other:
+        return '';
+    }
+  }
+
+  void _onTypeChanged(ChargeType? type) {
+    if (type == null) return;
+    setState(() {
+      final isUnedited = _descCtrl.text.trim() == _defaultDescription(_type);
+      _type = type;
+      if (isUnedited) {
+        _descCtrl.text = _defaultDescription(type);
+      }
+    });
+  }
+
+  double get _previewTotal {
+    if (_type.isMileageBased) {
+      final quantity = double.tryParse(_quantityCtrl.text.trim()) ?? 0;
+      final rate = double.tryParse(_rateCtrl.text.trim()) ?? 0;
+      return quantity * rate;
+    }
+    return double.tryParse(_amountCtrl.text.trim()) ?? 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(isEditing ? 'Edit Charge' : 'Add Charge'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<ChargeType>(
+                value: _type,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: ChargeType.values
+                    .map((t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t.label),
+                        ))
+                    .toList(),
+                onChanged: _onTypeChanged,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(labelText: 'Description'),
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+              ),
+              const SizedBox(height: 8),
+              if (_type.isMileageBased) ...[
+                TextFormField(
+                  controller: _quantityCtrl,
+                  decoration: const InputDecoration(labelText: 'Miles driven'),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final parsed = double.tryParse(v?.trim() ?? '');
+                    if (parsed == null || parsed < 0) {
+                      return 'Enter a number 0 or more';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _rateCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Rate per mile',
+                    prefixText: '\$',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final parsed = double.tryParse(v?.trim() ?? '');
+                    if (parsed == null || parsed < 0) {
+                      return 'Enter a number 0 or more';
+                    }
+                    return null;
+                  },
+                ),
+              ] else
+                TextFormField(
+                  controller: _amountCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    prefixText: '\$',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    final parsed = double.tryParse(v?.trim() ?? '');
+                    if (parsed == null || parsed < 0) {
+                      return 'Enter a number 0 or more';
+                    }
+                    return null;
+                  },
+                ),
+              const SizedBox(height: 8),
+              Text(
+                'Total: ${AppUtils.formatCurrency(_previewTotal)}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              final quantity = _type.isMileageBased
+                  ? double.parse(_quantityCtrl.text.trim())
+                  : 1.0;
+              final rate = _type.isMileageBased
+                  ? double.parse(_rateCtrl.text.trim())
+                  : double.parse(_amountCtrl.text.trim());
+              Navigator.pop(
+                context,
+                VisitCharge(
+                  id: widget.existingCharge?.id,
+                  visitId: widget.visitId,
+                  type: _type,
+                  description: _descCtrl.text.trim(),
+                  quantity: quantity,
+                  rate: rate,
+                ),
+              );
+            }
+          },
+          child: Text(isEditing ? 'Update' : 'Save'),
+        ),
+      ],
+    );
+  }
+}
+
 // ==================== SHARED WIDGET ====================
 
 class VisitListTile extends StatelessWidget {

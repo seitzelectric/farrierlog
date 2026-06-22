@@ -48,3 +48,61 @@ Photos, invoices, and backups are stored as files on disk (paths recorded in the
 ### Versioning
 
 Android `versionCode` in `android/app/build.gradle` is hardcoded (not driven by `flutter.versionCode` from `local.properties`) — bump it manually for each release build, separately from the `version:` field in `pubspec.yaml`.
+
+## Business Context
+
+- **Product:** FarrierLog by Rogue Business Apps
+- **Distribution:** Google Play Store (Android)
+- **Model:** One-time purchase (no subscription, no cloud dependency)
+- **Application ID:** `com.seitzelectric.farrierlog`
+- **Version bump:** `android/app/build.gradle` `versionCode` is hardcoded — bump manually for each release, separately from `pubspec.yaml`
+
+## Feature Status
+
+### Completed ✅
+- Client management (list, detail, create, edit, delete with cascade)
+- Horse/animal records linked to clients
+- Visit scheduling with recurring appointment chains
+- Calendar view with visit markers (solid = confirmed, outlined = auto-generated)
+- New appointment FAB on calendar — opens NewVisitScreen pre-filled with selected date
+- Searchable client picker in NewVisitScreen (replaces dropdown — searches by name and address)
+- Service lines with itemized pricing, group services, headcount billing
+- Travel and incidentals (VisitCharge model — mileage, tolls, reimbursement variants)
+- Visit status split: completed vs. paid
+- Invoicing: PDF generation, print, share
+- Photo capture per visit — tagged to individual animals via multi-select checkboxes (all pre-checked by default)
+- Photo history on horse detail screen: oldest-first progression, elapsed time between shoeings, visit notes in context, captions below thumbnails
+- CSV export and full zip backup/restore
+- Dashboard with today's visits and upcoming schedule
+
+### Known Issues / In Progress 🔧
+- Two pre-existing lint infos in `_addCharge`/`_editCharge` (lines 177/192) — not blocking, cosmetic only
+
+### Potential Next Features 📋
+- Before/after photo comparison view (side-by-side two photos from horse history)
+- Client-facing progress report (shareable PDF showing photo progression per animal)
+- Push notification reminders for upcoming appointments
+- Windows/iOS build targets (scaffolding present, not yet tested)
+- Stripe-based purchase flow for any future premium features
+
+## Database Migration Pattern
+
+FarrierLog uses sqflite's built-in `onCreate`/`onUpgrade` pattern — no separate migration files.
+
+When adding a schema change:
+1. Add an `if (oldVersion < N)` block in `_onUpgrade` in `database_service.dart`
+2. Bump `_dbVersion` to `N`
+3. Update `onCreate` if the new column/table should exist on fresh installs
+
+Current version: **8**
+Next migration: **9**
+
+Tables: `clients`, `horses`, `visits`, `visit_horses`, `service_lines`, `visit_photos`, `invoices`, `app_settings`
+
+## Photo and File Storage
+
+Photos, invoices, and backups are stored as files on disk. Paths are recorded in the DB (`VisitPhoto.path`, `InvoiceRecord.filePath`). App-managed directories via `path_provider`.
+
+Photos are stored under `getApplicationDocumentsDirectory()/photos/` with UUID-based filenames.
+
+When adding any new file-backed data type, include it in both `BackupService` backup and restore paths.

@@ -173,10 +173,34 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
       );
     }
 
+    // Sort entries oldest-first so progression reads top-to-bottom
+    final entries = grouped.entries.toList()
+      ..sort((a, b) {
+        final aDate = a.value.first.visit.dateTime;
+        final bDate = b.value.first.visit.dateTime;
+        return aDate.compareTo(bDate);
+      });
+
     return Column(
-      children: grouped.entries.map((entry) {
+      children: List.generate(entries.length, (index) {
+        final entry = entries[index];
         final visit = entry.value.first.visit;
         final photos = entry.value.map((item) => item.photo).toList();
+
+        // Calculate elapsed time since previous visit
+        String? elapsedLabel;
+        if (index > 0) {
+          final previousVisit = entries[index - 1].value.first.visit;
+          final days =
+              visit.dateTime.difference(previousVisit.dateTime).inDays.abs();
+          if (days < 7) {
+            elapsedLabel = '$days day${days == 1 ? '' : 's'} since last visit';
+          } else {
+            final weeks = (days / 7).round();
+            elapsedLabel =
+                '$weeks week${weeks == 1 ? '' : 's'} since last shoeing';
+          }
+        }
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6),
@@ -188,9 +212,31 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        AppUtils.formatDate(visit.dateTime),
-                        style: Theme.of(context).textTheme.titleMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppUtils.formatDate(visit.dateTime),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          if (elapsedLabel != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              elapsedLabel,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     TextButton.icon(
@@ -200,16 +246,30 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                if (visit.notes.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    visit.notes,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 12),
                 PhotoGrid(
                   photos: photos,
                   onTap: _showPhotoFullScreen,
+                  showCaptionBelow: true,
                 ),
               ],
             ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 

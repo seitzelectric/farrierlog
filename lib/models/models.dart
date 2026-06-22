@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Client {
   final int? id;
   final String firstName;
@@ -280,6 +282,90 @@ class ServiceLine {
         quantity: (map['quantity'] as num?)?.toInt() ?? 1,
         isGroup: (map['is_group'] as int?) == 1,
         groupLabel: map['group_label'] as String?,
+        createdAt: map['created_at'] != null
+            ? DateTime.parse(map['created_at'] as String)
+            : null,
+      );
+}
+
+enum ChargeType { mileage, tolls, reimbursement, transport, other }
+
+extension ChargeTypeDisplay on ChargeType {
+  String get label {
+    switch (this) {
+      case ChargeType.mileage:
+        return 'Mileage';
+      case ChargeType.tolls:
+        return 'Tolls';
+      case ChargeType.reimbursement:
+        return 'Reimbursement';
+      case ChargeType.transport:
+        return 'Transport';
+      case ChargeType.other:
+        return 'Other';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ChargeType.mileage:
+        return Icons.route;
+      case ChargeType.tolls:
+        return Icons.toll;
+      case ChargeType.reimbursement:
+        return Icons.receipt_long;
+      case ChargeType.transport:
+        return Icons.local_shipping;
+      case ChargeType.other:
+        return Icons.attach_money;
+    }
+  }
+
+  bool get isMileageBased =>
+      this == ChargeType.mileage || this == ChargeType.transport;
+}
+
+class VisitCharge {
+  final int? id;
+  final int visitId;
+  final ChargeType type;
+  final String description;
+  final double quantity;
+  final double rate;
+  final DateTime createdAt;
+
+  VisitCharge({
+    this.id,
+    required this.visitId,
+    required this.type,
+    required this.description,
+    this.quantity = 1,
+    required this.rate,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  double get total => quantity * rate;
+
+  Map<String, dynamic> toMap() => {
+        if (id != null) 'id': id,
+        'visit_id': visitId,
+        'type': type.name,
+        'description': description,
+        'quantity': quantity,
+        'rate': rate,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  factory VisitCharge.fromMap(Map<String, dynamic> map) => VisitCharge(
+        id: map['id'] as int?,
+        visitId: map['visit_id'] as int,
+        type: ChargeType.values.firstWhere(
+          (t) => t.name == map['type'],
+          orElse: () => ChargeType.other,
+        ),
+        description: (map['description'] as String?) ?? '',
+        quantity: (map['quantity'] as num?)?.toDouble() ?? 1,
+        rate: (map['rate'] as num?)?.toDouble() ?? 0,
         createdAt: map['created_at'] != null
             ? DateTime.parse(map['created_at'] as String)
             : null,

@@ -137,12 +137,14 @@ class PhotoGrid extends StatelessWidget {
   final List<VisitPhoto> photos;
   final Function(VisitPhoto)? onTap;
   final Function(VisitPhoto)? onLongPress;
+  final bool showCaptionBelow;
 
   const PhotoGrid({
     super.key,
     required this.photos,
     this.onTap,
     this.onLongPress,
+    this.showCaptionBelow = false,
   });
 
   @override
@@ -152,70 +154,98 @@ class PhotoGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: showCaptionBelow ? 2 : 3,
         crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        mainAxisSpacing: showCaptionBelow ? 16 : 8,
+        childAspectRatio: showCaptionBelow ? 0.85 : 1.0,
       ),
       itemCount: photos.length,
       itemBuilder: (context, index) {
         final photo = photos[index];
         final file = File(photo.path);
 
+        final imageWidget = ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (file.existsSync())
+                Image.file(
+                  file,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildErrorPlaceholder(context),
+                )
+              else
+                _buildErrorPlaceholder(context),
+              if (photo.includeOnInvoice)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.receipt_long,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+              if (!showCaptionBelow && photo.caption.isNotEmpty)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 2),
+                    color: Colors.black54,
+                    child: Text(
+                      photo.caption,
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        if (showCaptionBelow) {
+          return GestureDetector(
+            onTap: () => onTap?.call(photo),
+            onLongPress: () => onLongPress?.call(photo),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: imageWidget),
+                if (photo.caption.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    photo.caption,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
+
         return GestureDetector(
           onTap: () => onTap?.call(photo),
           onLongPress: () => onLongPress?.call(photo),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (file.existsSync())
-                  Image.file(
-                    file,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _buildErrorPlaceholder(context),
-                  )
-                else
-                  _buildErrorPlaceholder(context),
-                if (photo.includeOnInvoice)
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.receipt_long,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
-                if (photo.caption.isNotEmpty)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      color: Colors.black54,
-                      child: Text(
-                        photo.caption,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 10),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: imageWidget,
           ),
         );
       },
