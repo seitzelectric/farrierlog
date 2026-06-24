@@ -410,10 +410,12 @@ class InvoiceService {
     String? subject,
     String? fileName,
   }) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: subject,
-      text: subject ?? 'Farrier Invoice',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: subject,
+        text: subject ?? 'Farrier Invoice',
+      ),
     );
   }
 

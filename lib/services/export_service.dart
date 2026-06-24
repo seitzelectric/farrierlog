@@ -40,10 +40,12 @@ class ExportService {
   }
 
   static Future<void> shareCsvZip(File file) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'FarrierLog CSV Export',
-      text: 'FarrierLog CSV export',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'FarrierLog CSV Export',
+        text: 'FarrierLog CSV export',
+      ),
     );
   }
 

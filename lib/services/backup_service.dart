@@ -75,10 +75,12 @@ class BackupService {
   }
 
   static Future<void> shareBackup(File file) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'FarrierLog Backup',
-      text: 'FarrierLog full backup',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        subject: 'FarrierLog Backup',
+        text: 'FarrierLog full backup',
+      ),
     );
   }
 
