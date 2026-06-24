@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Camera: required for taking photos directly in the app -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Gallery access on Android 13+ (API 33+): READ_MEDIA_IMAGES replaces
+         READ_EXTERNAL_STORAGE for photo/image access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Gallery access on Android 12 and below -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
 <queries>
     <intent>
         <action android:name="android.intent.action.DIAL" />
