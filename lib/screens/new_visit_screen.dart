@@ -32,6 +32,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   final _customWeeksCtrl = TextEditingController();
   bool _loading = true;
   bool _showClientError = false;
+  bool _startWeekOnMonday = false;
   bool get _isEditing => widget.visit != null;
   bool get _isCustomRecurrence =>
       _recurrenceWeeks != null && ![4, 6, 8, 10].contains(_recurrenceWeeks);
@@ -62,6 +63,9 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
 
   Future<void> _loadData() async {
     final clients = await DatabaseService.getClients();
+    final startOnMonday =
+        await DatabaseService.getSetting('start_calendar_week_on_monday') ==
+            'true';
     if (_selectedClient == null && widget.visit != null) {
       _selectedClient = await DatabaseService.getClient(widget.visit!.clientId);
     }
@@ -78,6 +82,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     if (mounted) {
       setState(() {
         _clients = clients;
+        _startWeekOnMonday = startOnMonday;
         _loading = false;
       });
     }
@@ -111,6 +116,10 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
       initialDate: _selectedDateTime,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
+      // Mirror the calendar screen's start-of-week preference.
+      locale: _startWeekOnMonday
+          ? const Locale('en', 'GB') // Monday-first locale
+          : const Locale('en', 'US'), // Sunday-first locale
     );
     if (picked != null) {
       setState(() {
