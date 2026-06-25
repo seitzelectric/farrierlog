@@ -254,7 +254,7 @@ class PhotoGrid extends StatelessWidget {
 
   Widget _buildErrorPlaceholder(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surfaceVariant,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Icon(
         Icons.broken_image,
         color: Theme.of(context).colorScheme.outline,

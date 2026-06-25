@@ -6,7 +6,7 @@ import '../models/models.dart';
 class DatabaseService {
   static Database? _db;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 9;
+  static const int _dbVersion = 10;
 
   static String get databaseName => _dbName;
   static int get databaseVersion => _dbVersion;
@@ -55,6 +55,7 @@ class DatabaseService {
         email TEXT NOT NULL DEFAULT '',
         address TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
+        internal_notes TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -68,6 +69,7 @@ class DatabaseService {
         breed TEXT NOT NULL DEFAULT '',
         color TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
+        internal_notes TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
@@ -269,6 +271,13 @@ class DatabaseService {
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_visit_charges_visit ON visit_charges(visit_id)');
     }
+
+    if (oldVersion < 10) {
+      await db.execute(
+          "ALTER TABLE clients ADD COLUMN internal_notes TEXT NOT NULL DEFAULT ''");
+      await db.execute(
+          "ALTER TABLE horses ADD COLUMN internal_notes TEXT NOT NULL DEFAULT ''");
+    }
   }
 
   // ==================== CLIENT OPERATIONS ====================
@@ -382,6 +391,7 @@ class DatabaseService {
         clients.email AS client_email,
         clients.address AS client_address,
         clients.notes AS client_notes,
+        clients.internal_notes AS client_internal_notes,
         clients.created_at AS client_created_at,
         clients.updated_at AS client_updated_at
       FROM horses
@@ -402,6 +412,7 @@ class DatabaseService {
         clients.email AS client_email,
         clients.address AS client_address,
         clients.notes AS client_notes,
+        clients.internal_notes AS client_internal_notes,
         clients.created_at AS client_created_at,
         clients.updated_at AS client_updated_at
       FROM horses
@@ -425,6 +436,11 @@ class DatabaseService {
       });
     }
     return visitId;
+  }
+
+  static Future<void> updateVisitNotes(int id, String notes) async {
+    final db = await database;
+    await db.update('visits', {'notes': notes}, where: 'id = ?', whereArgs: [id]);
   }
 
   static Future<int> updateVisit(Visit visit, List<int> horseIds) async {
@@ -839,6 +855,19 @@ class DatabaseService {
     await setSetting(mileageRateSettingKey, rate.toString());
   }
 
+  static const String _currencySymbolKey = 'currency_symbol';
+  static Future<String> getCurrencySymbol() async =>
+      await getSetting(_currencySymbolKey, defaultValue: '\$');
+  static Future<void> setCurrencySymbol(String symbol) async =>
+      await setSetting(_currencySymbolKey, symbol);
+
+  static const String _distanceUnitKey = 'distance_unit';
+  /// Returns 'mi' or 'km'
+  static Future<String> getDistanceUnit() async =>
+      await getSetting(_distanceUnitKey, defaultValue: 'mi');
+  static Future<void> setDistanceUnit(String unit) async =>
+      await setSetting(_distanceUnitKey, unit);
+
   // ==================== PHOTO OPERATIONS ====================
 
   static Future<int> insertPhoto(VisitPhoto photo) async {
@@ -1030,6 +1059,45 @@ class DatabaseService {
     );
     if (rows.isEmpty) return null;
     return InvoiceRecord.fromMap(rows.first);
+  }
+
+  static Future<void> deleteInvoice(int id) async {
+    final db = await database;
+    await db.delete('invoices', where: 'id = ?', whereArgs: [id]);
+  }
+
+  static Future<List<Map<String, dynamic>>> searchInvoices({
+    DateTime? fromDate,
+    DateTime? toDate,
+    int? clientId,
+  }) async {
+    final db = await database;
+    final conditions = <String>[];
+    final args = <dynamic>[];
+    if (fromDate != null) {
+      conditions.add('i.issued_at >= ?');
+      args.add(fromDate.toIso8601String());
+    }
+    if (toDate != null) {
+      final end = DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59);
+      conditions.add('i.issued_at <= ?');
+      args.add(end.toIso8601String());
+    }
+    if (clientId != null) {
+      conditions.add('v.client_id = ?');
+      args.add(clientId);
+    }
+    final where = conditions.isNotEmpty
+        ? 'WHERE ${conditions.join(' AND ')}'
+        : '';
+    return await db.rawQuery('''
+      SELECT i.*, c.first_name, c.last_name, v.datetime as visit_datetime
+      FROM invoices i
+      JOIN visits v ON i.visit_id = v.id
+      JOIN clients c ON v.client_id = c.id
+      $where
+      ORDER BY i.issued_at DESC
+    ''', args);
   }
 
   static Future<void> setInvoicesPaidForVisit(

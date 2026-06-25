@@ -64,7 +64,7 @@ signingConfigs {
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
-        versionCode 17
+        versionCode 18
         versionName flutterVersionName
     }
 
@@ -75,8 +75,7 @@ signingConfigs {
                 debugSymbolLevel 'SYMBOL_TABLE'
             }
         }
-    }
-}
+    }}
 
 flutter {
     source '../..'

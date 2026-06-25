@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/screens.dart';
+import 'services/database_service.dart';
+import 'utils/utils.dart';
 
 void main() => runApp(const FarrierLogApp());
 
-class FarrierLogApp extends StatelessWidget {
+class FarrierLogApp extends StatefulWidget {
   const FarrierLogApp({super.key});
+
+  @override
+  State<FarrierLogApp> createState() => _FarrierLogAppState();
+}
+
+class _FarrierLogAppState extends State<FarrierLogApp> {
+  @override
+  void initState() {
+    super.initState();
+    DatabaseService.getCurrencySymbol().then(AppUtils.initCurrencySymbol);
+    DatabaseService.getDistanceUnit().then(AppUtils.initDistanceUnit);
+  }
 
   @override
   Widget build(BuildContext context) {

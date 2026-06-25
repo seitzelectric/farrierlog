@@ -2,6 +2,16 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppUtils {
+  static String _currencySymbol = '\$';
+  static String _distanceUnit = 'mi';
+
+  static void initCurrencySymbol(String symbol) =>
+      _currencySymbol = symbol.isEmpty ? '\$' : symbol;
+  static void initDistanceUnit(String unit) =>
+      _distanceUnit = unit == 'km' ? 'km' : 'mi';
+
+  static String get distanceUnit => _distanceUnit;
+
   static Uri googleMapsSearchUri(String address) {
     final encoded = Uri.encodeComponent(address);
     return Uri.parse(
@@ -32,9 +42,11 @@ class AppUtils {
     return DateFormat('h:mm a').format(dateTime);
   }
 
-  static String formatCurrency(double amount) {
-    return '\$${amount.toStringAsFixed(2)}';
-  }
+  static String formatCurrency(double amount) =>
+      '$_currencySymbol${amount.toStringAsFixed(2)}';
+
+  static String formatDistance(double quantity) =>
+      '${quantity.toStringAsFixed(1)} $_distanceUnit';
 
   static String formatDateTimeForInvoice(DateTime dateTime) {
     return DateFormat('MMMM d, yyyy  h:mm a').format(dateTime);

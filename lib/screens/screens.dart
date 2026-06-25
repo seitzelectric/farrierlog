@@ -7,7 +7,10 @@ export 'home_screen.dart';
 export 'calendar_screen.dart';
 export 'new_visit_screen.dart';
 export 'horse_detail_screen.dart';
+export 'invoice_history_screen.dart';
+export 'animal_list_screen.dart';
 import 'new_visit_screen.dart';
+import 'horse_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
@@ -248,6 +251,42 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               padding: const EdgeInsets.only(top: 8),
                               child: Text('Notes: ${_client.notes}'),
                             ),
+                          if (_client.internalNotes.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: Colors.amber.shade200),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.lock_outline,
+                                            size: 16,
+                                            color: Colors.amber.shade700),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Private Staff Notes',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.amber.shade800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(_client.internalNotes),
+                                  ],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -301,6 +340,20 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   ),
                                 ],
                               ),
+                              onTap: () async {
+                                final horseWithInfo = HorseWithClientInfo(
+                                  horse: horse,
+                                  client: _client,
+                                );
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        HorseDetailScreen(animal: horseWithInfo),
+                                  ),
+                                );
+                                _loadData();
+                              },
                             ),
                           ),
                         )),
@@ -371,6 +424,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
   late final TextEditingController _breedCtrl;
   late final TextEditingController _colorCtrl;
   late final TextEditingController _notesCtrl;
+  late final TextEditingController _internalNotesCtrl;
 
   bool get isEditing => widget.horse != null;
 
@@ -381,6 +435,8 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
     _breedCtrl = TextEditingController(text: widget.horse?.breed ?? '');
     _colorCtrl = TextEditingController(text: widget.horse?.color ?? '');
     _notesCtrl = TextEditingController(text: widget.horse?.notes ?? '');
+    _internalNotesCtrl =
+        TextEditingController(text: widget.horse?.internalNotes ?? '');
   }
 
   @override
@@ -389,6 +445,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
     _breedCtrl.dispose();
     _colorCtrl.dispose();
     _notesCtrl.dispose();
+    _internalNotesCtrl.dispose();
     super.dispose();
   }
 
@@ -418,8 +475,31 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
               ),
               TextFormField(
                 controller: _notesCtrl,
-                decoration: const InputDecoration(labelText: 'Notes'),
+                decoration: const InputDecoration(
+                  labelText: 'Animal Notes (private)',
+                  hintText: 'Health history, behaviour, handling notes...',
+                ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: TextFormField(
+                  controller: _internalNotesCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Internal Notes (staff only)',
+                    hintText: 'Private staff observations — never on invoice',
+                    prefixIcon:
+                        Icon(Icons.lock_outline, color: Colors.amber),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.fromLTRB(0, 12, 12, 12),
+                  ),
+                  maxLines: 5,
+                ),
               ),
             ],
           ),
@@ -442,6 +522,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
                   breed: _breedCtrl.text.trim(),
                   color: _colorCtrl.text.trim(),
                   notes: _notesCtrl.text.trim(),
+                  internalNotes: _internalNotesCtrl.text.trim(),
                 ),
               );
             }
@@ -542,7 +623,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
               if (!_isGroup) ...[
                 if (widget.horses.isNotEmpty)
                   DropdownButtonFormField<int?>(
-                    value: _selectedHorseId,
+                    initialValue: _selectedHorseId,
                     decoration: const InputDecoration(labelText: 'Animal'),
                     items: [
                       const DropdownMenuItem(
@@ -773,7 +854,7 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<ChargeType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: ChargeType.values
                     .map((t) => DropdownMenuItem(
@@ -794,7 +875,9 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
               if (_type.isMileageBased) ...[
                 TextFormField(
                   controller: _quantityCtrl,
-                  decoration: const InputDecoration(labelText: 'Miles driven'),
+                  decoration: InputDecoration(
+                    labelText: 'Distance (${AppUtils.distanceUnit})',
+                  ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) {
@@ -808,8 +891,8 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _rateCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Rate per mile',
+                  decoration: InputDecoration(
+                    labelText: 'Rate per ${AppUtils.distanceUnit}',
                     prefixText: '\$',
                   ),
                   keyboardType:

@@ -268,7 +268,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
             onTap: _pickTime,
           ),
           DropdownButtonFormField<int?>(
-            value: _isCustomRecurrence ? -1 : _recurrenceWeeks,
+            initialValue: _isCustomRecurrence ? -1 : _recurrenceWeeks,
             decoration: const InputDecoration(labelText: 'Recurring'),
             items: const [
               DropdownMenuItem<int?>(value: null, child: Text('None')),
@@ -344,7 +344,8 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           TextFormField(
             controller: _notesCtrl,
             decoration: const InputDecoration(
-              labelText: 'Visit Notes',
+              labelText: 'Invoice Notes',
+              hintText: 'Printed on invoice — services, corrections, special notes...',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,

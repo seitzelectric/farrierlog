@@ -6,6 +6,7 @@ import '../services/backup_service.dart';
 import '../services/export_service.dart';
 import '../services/invoice_service.dart';
 import '../services/database_service.dart';
+import '../utils/utils.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,11 +21,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _mileageRateCtrl = TextEditingController();
+  final _customCurrencyCtrl = TextEditingController();
   String? _logoPath;
   bool _startCalendarWeekOnMonday = false;
   bool _exporting = false;
   bool _backingUp = false;
   bool _restoring = false;
+  String _currencySymbol = '\$';
+  String _distanceUnit = 'mi';
+
+  static const _presetCurrencies = [
+    '\$',
+    '€',
+    '£',
+    '¥',
+    '₹',
+    'CAD\$',
+    'AUD\$',
+    'NZD\$',
+    'R',
+  ];
+
+  bool get _isCustomCurrency => !_presetCurrencies.contains(_currencySymbol);
 
   @override
   void initState() {
@@ -34,21 +52,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     _nameCtrl.text = await DatabaseService.getSetting('company_name');
-
     _addressCtrl.text = await DatabaseService.getSetting('company_address');
-
     _phoneCtrl.text = await DatabaseService.getSetting('company_phone');
-
     _emailCtrl.text = await DatabaseService.getSetting('company_email');
-
     _logoPath = await DatabaseService.getSetting('company_logo');
-
     _startCalendarWeekOnMonday =
         await DatabaseService.getSetting('start_calendar_week_on_monday') ==
             'true';
-
     final mileageRate = await DatabaseService.getMileageRate();
     _mileageRateCtrl.text = mileageRate.toString();
+    _currencySymbol = await DatabaseService.getCurrencySymbol();
+    _distanceUnit = await DatabaseService.getDistanceUnit();
+
+    if (_isCustomCurrency) {
+      _customCurrencyCtrl.text = _currencySymbol;
+    }
 
     if (_logoPath != null && _logoPath!.isEmpty) {
       _logoPath = null;
@@ -76,6 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _mileageRateCtrl.dispose();
+    _customCurrencyCtrl.dispose();
     super.dispose();
   }
 
@@ -90,16 +109,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _save() async {
     await DatabaseService.setSetting('company_name', _nameCtrl.text.trim());
-
     await DatabaseService.setSetting(
         'company_address', _addressCtrl.text.trim());
-
     await DatabaseService.setSetting('company_phone', _phoneCtrl.text.trim());
-
     await DatabaseService.setSetting('company_email', _emailCtrl.text.trim());
-
     await DatabaseService.setSetting('company_logo', _logoPath ?? '');
-
     await DatabaseService.setSetting(
       'start_calendar_week_on_monday',
       _startCalendarWeekOnMonday.toString(),
@@ -107,6 +121,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final mileageRate = double.tryParse(_mileageRateCtrl.text.trim()) ?? 0.67;
     await DatabaseService.setMileageRate(mileageRate);
+
+    final symbol = _isCustomCurrency
+        ? _customCurrencyCtrl.text.trim()
+        : _currencySymbol;
+    await DatabaseService.setCurrencySymbol(symbol);
+    AppUtils.initCurrencySymbol(symbol);
+
+    await DatabaseService.setDistanceUnit(_distanceUnit);
+    AppUtils.initDistanceUnit(_distanceUnit);
 
     InvoiceService.setCompanyInfo(
       CompanyInfo(
@@ -119,7 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Settings saved!')),
     );
@@ -127,7 +149,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportData() async {
     setState(() => _exporting = true);
-
     try {
       final file = await ExportService.exportCsvZip();
       await ExportService.shareCsvZip(file);
@@ -137,15 +158,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Export failed: $error')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _exporting = false);
-      }
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
   Future<void> _createBackup() async {
     setState(() => _backingUp = true);
-
     try {
       final file = await BackupService.createBackup();
       await BackupService.shareBackup(file);
@@ -155,9 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Backup failed: $error')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _backingUp = false);
-      }
+      if (mounted) setState(() => _backingUp = false);
     }
   }
 
@@ -196,7 +212,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await BackupService.restoreBackup(File(path));
       await _loadSettings();
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Backup restored.')),
@@ -207,14 +222,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Restore failed: $error')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _restoring = false);
-      }
+      if (mounted) setState(() => _restoring = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final dropdownSymbol = _isCustomCurrency ? 'Custom...' : _currencySymbol;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -231,7 +246,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _pickLogo,
               child: CircleAvatar(
                 radius: 50,
-                backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 backgroundImage:
                     _logoPath != null ? FileImage(File(_logoPath!)) : null,
                 child: _logoPath == null
@@ -276,6 +291,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 24),
+          Text('Currency & Units',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: dropdownSymbol,
+            decoration: const InputDecoration(
+              labelText: 'Currency',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: '\$', child: Text('\$ — US Dollar')),
+              DropdownMenuItem(value: '€', child: Text('€ — Euro')),
+              DropdownMenuItem(value: '£', child: Text('£ — Pound')),
+              DropdownMenuItem(value: '¥', child: Text('¥ — Yen / Yuan')),
+              DropdownMenuItem(value: '₹', child: Text('₹ — Rupee')),
+              DropdownMenuItem(value: 'CAD\$', child: Text('CAD\$ — Canadian Dollar')),
+              DropdownMenuItem(value: 'AUD\$', child: Text('AUD\$ — Australian Dollar')),
+              DropdownMenuItem(value: 'NZD\$', child: Text('NZD\$ — New Zealand Dollar')),
+              DropdownMenuItem(value: 'R', child: Text('R — South African Rand')),
+              DropdownMenuItem(value: 'Custom...', child: Text('Custom...')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                if (value == 'Custom...') {
+                  _currencySymbol = _customCurrencyCtrl.text.trim().isEmpty
+                      ? 'Custom...'
+                      : _customCurrencyCtrl.text.trim();
+                } else {
+                  _currencySymbol = value;
+                  _customCurrencyCtrl.clear();
+                }
+              });
+            },
+          ),
+          if (_isCustomCurrency || dropdownSymbol == 'Custom...') ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _customCurrencyCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Custom currency symbol',
+                hintText: 'e.g. CHF, kr, RM',
+                border: OutlineInputBorder(),
+              ),
+              maxLength: 5,
+              onChanged: (v) => setState(() => _currencySymbol = v.trim()),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text('Distance unit',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'mi', label: Text('Miles (mi)')),
+              ButtonSegment(value: 'km', label: Text('Kilometres (km)')),
+            ],
+            selected: {_distanceUnit},
+            onSelectionChanged: (selection) =>
+                setState(() => _distanceUnit = selection.first),
+          ),
+          const SizedBox(height: 24),
           Text('Mileage', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text('Default rate used when adding mileage or transport charges',
@@ -283,10 +360,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           TextField(
             controller: _mileageRateCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Mileage Rate (per mile)',
-              prefixText: '\$',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: 'Rate (per $_distanceUnit)',
+              prefixText: _isCustomCurrency
+                  ? _customCurrencyCtrl.text.trim()
+                  : _currencySymbol,
+              border: const OutlineInputBorder(),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),

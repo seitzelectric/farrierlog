@@ -110,7 +110,7 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Bill To:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.Text(client.fullName),
                     if (client.address.isNotEmpty) pw.Text(client.address),
                     if (client.phone.isNotEmpty) pw.Text(client.phone),
@@ -123,10 +123,10 @@ class InvoiceService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Visit Details:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.Text(AppUtils.formatDateTimeForInvoice(visit.dateTime)),
                     if (visit.notes.isNotEmpty)
-                      pw.Text('Notes: ${visit.notes}'),
+                      pw.Text('Invoice Notes: ${visit.notes}'),
                   ],
                 ),
               ),
@@ -138,7 +138,7 @@ class InvoiceService {
           pw.Center(
             child: pw.Text('INVOICE',
                 style:
-                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                    const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
           ),
           pw.Text('Date: ${AppUtils.formatDate(DateTime.now())}'),
           pw.Text(invoiceNumber != null
@@ -149,7 +149,7 @@ class InvoiceService {
           // Service Lines Table
           pw.Text('Services',
               style:
-                  pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
           pw.Table(
             border: pw.TableBorder.all(),
@@ -210,7 +210,7 @@ class InvoiceService {
           if (charges.isNotEmpty) ...[
             pw.SizedBox(height: 16),
             pw.Text('Travel & Incidentals',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                     fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
             pw.Table(
@@ -229,7 +229,7 @@ class InvoiceService {
                         _tableCell(charge.description),
                         _tableCell(
                           charge.type.isMileageBased
-                              ? '${AppUtils.formatCurrency(charge.rate)}/mi × ${charge.quantity} mi'
+                              ? '${AppUtils.formatCurrency(charge.rate)}/${AppUtils.distanceUnit} × ${AppUtils.formatDistance(charge.quantity)}'
                               : '',
                         ),
                         _tableCell(
@@ -254,7 +254,7 @@ class InvoiceService {
               alignment: pw.Alignment.centerRight,
               child: pw.Text(
                 'Total: ${AppUtils.formatCurrency(total)}',
-                style: pw.TextStyle(
+                style: const pw.TextStyle(
                     fontSize: 14, fontWeight: pw.FontWeight.bold),
               ),
             ),
@@ -273,7 +273,7 @@ class InvoiceService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Status:',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 pw.Text(visit.paid ? 'PAID' : 'UNPAID',
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
@@ -288,7 +288,7 @@ class InvoiceService {
             pw.SizedBox(height: 24),
             pw.Text('Photos',
                 style:
-                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
             ...invoicePhotos.map((photo) {
               final file = File(photo.path);
@@ -319,7 +319,7 @@ class InvoiceService {
           pw.Center(
             child: pw.Text('Thank you for your business!',
                 style:
-                    pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
+                    const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
           ),
         ],
       ),
@@ -328,20 +328,33 @@ class InvoiceService {
     final output = invoiceNumber == null
         ? await getTemporaryDirectory()
         : await _invoiceDirectory(visit.dateTime.year);
+    final date = visit.dateTime.toIso8601String().split('T').first;
+    final docType = visit.paid ? 'Receipt' : 'Invoice';
     final safeClientName = client.fullName
         .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
 
-    final date = visit.dateTime.toIso8601String().split('T').first;
-    final docType = visit.paid ? 'Receipt' : 'Invoice';
-
     final fileName = invoiceNumber == null
         ? '${safeClientName}_${date}_$docType.pdf'
-        : '$invoiceNumber.pdf';
+        : _buildInvoiceFileName(client, visit.dateTime, output);
     final file = File(p.join(output.path, fileName));
     await file.writeAsBytes(await pdf.save());
     return file;
+  }
+
+  static String _buildInvoiceFileName(Client client, DateTime date, Directory dir) {
+    final last = client.lastName.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+    final first = client.firstName.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+    final namePart = first.isNotEmpty ? '${last}_$first' : last;
+    final dateStr = date.toIso8601String().split('T').first;
+    var name = '${namePart}_$dateStr.pdf';
+    var counter = 1;
+    while (File(p.join(dir.path, name)).existsSync()) {
+      counter++;
+      name = '${namePart}_${dateStr}_$counter.pdf';
+    }
+    return name;
   }
 
   static Future<Directory> _invoiceDirectory(int year) async {
@@ -371,7 +384,7 @@ class InvoiceService {
             children: [
               if (company.name.isNotEmpty)
                 pw.Text(company.name,
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                         fontSize: 20, fontWeight: pw.FontWeight.bold)),
               if (company.address.isNotEmpty)
                 pw.Text(company.address,
@@ -401,7 +414,7 @@ class InvoiceService {
       pw.Padding(
         padding: const pw.EdgeInsets.all(6),
         child: pw.Text(text,
-            style: bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
+            style: bold ? const pw.TextStyle(fontWeight: pw.FontWeight.bold) : null,
             textAlign: align),
       );
 

@@ -16,6 +16,8 @@ class _HomeScreenState extends State<HomeScreen> {
     ClientListScreen(),
     CalendarScreen(),
     DashboardScreen(),
+    InvoiceHistoryScreen(),
+    AnimalListScreen(),
   ];
 
   @override
@@ -55,6 +57,16 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Invoices',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.pets_outlined),
+            selectedIcon: Icon(Icons.pets),
+            label: 'Animals',
           ),
         ],
       ),

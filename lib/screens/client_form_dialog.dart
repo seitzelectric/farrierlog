@@ -22,6 +22,7 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _addressCtrl;
   late final TextEditingController _notesCtrl;
+  late final TextEditingController _internalNotesCtrl;
 
   @override
   void initState() {
@@ -29,23 +30,13 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
 
     final c = widget.client;
 
-    _firstNameCtrl =
-        TextEditingController(text: c?.firstName ?? '');
-
-    _lastNameCtrl =
-        TextEditingController(text: c?.lastName ?? '');
-
-    _phoneCtrl =
-        TextEditingController(text: c?.phone ?? '');
-
-    _emailCtrl =
-        TextEditingController(text: c?.email ?? '');
-
-    _addressCtrl =
-        TextEditingController(text: c?.address ?? '');
-
-    _notesCtrl =
-        TextEditingController(text: c?.notes ?? '');
+    _firstNameCtrl = TextEditingController(text: c?.firstName ?? '');
+    _lastNameCtrl = TextEditingController(text: c?.lastName ?? '');
+    _phoneCtrl = TextEditingController(text: c?.phone ?? '');
+    _emailCtrl = TextEditingController(text: c?.email ?? '');
+    _addressCtrl = TextEditingController(text: c?.address ?? '');
+    _notesCtrl = TextEditingController(text: c?.notes ?? '');
+    _internalNotesCtrl = TextEditingController(text: c?.internalNotes ?? '');
   }
 
   @override
@@ -56,6 +47,7 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
     _emailCtrl.dispose();
     _addressCtrl.dispose();
     _notesCtrl.dispose();
+    _internalNotesCtrl.dispose();
     super.dispose();
   }
 
@@ -72,6 +64,7 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
         email: _emailCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
         notes: _notesCtrl.text.trim(),
+        internalNotes: _internalNotesCtrl.text.trim(),
       ),
     );
   }
@@ -92,50 +85,64 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
               children: [
                 TextFormField(
                   controller: _firstNameCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'First Name'),
+                  decoration: const InputDecoration(labelText: 'First Name'),
                   validator: (v) =>
-                      v == null || v.trim().isEmpty
-                          ? 'Required'
-                          : null,
+                      v == null || v.trim().isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _lastNameCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Last Name'),
+                  decoration: const InputDecoration(labelText: 'Last Name'),
                   validator: (v) =>
-                      v == null || v.trim().isEmpty
-                          ? 'Required'
-                          : null,
+                      v == null || v.trim().isEmpty ? 'Required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _phoneCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Phone'),
+                  decoration: const InputDecoration(labelText: 'Phone'),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _emailCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(labelText: 'Email'),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _addressCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Address'),
+                  decoration: const InputDecoration(labelText: 'Address'),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _notesCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Notes'),
+                  decoration: const InputDecoration(
+                    labelText: 'Client Notes (private — not on invoice)',
+                    hintText: 'Gate codes, payment preferences, safety notes...',
+                  ),
                   maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: TextFormField(
+                    controller: _internalNotesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Internal Notes (staff only)',
+                      hintText:
+                          'Observations, warnings — never shown to client or on invoice',
+                      prefixIcon: Icon(Icons.lock_outline,
+                          color: Colors.amber),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.fromLTRB(0, 12, 12, 12),
+                    ),
+                    maxLines: 5,
+                  ),
                 ),
               ],
             ),
