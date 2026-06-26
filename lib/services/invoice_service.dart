@@ -283,36 +283,15 @@ class InvoiceService {
             ),
           ),
 
-          // Photos
+          // Photos — two per row to maximise page use
           if (invoicePhotos.isNotEmpty) ...[
             pw.SizedBox(height: 24),
             pw.Text('Photos',
                 style:
                     const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
-            ...invoicePhotos.map((photo) {
-              final file = File(photo.path);
-              if (file.existsSync()) {
-                return pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Image(
-                      pw.MemoryImage(file.readAsBytesSync()),
-                      height: 120,
-                    ),
-                    if (photo.caption.isNotEmpty)
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(top: 4, bottom: 8),
-                        child: pw.Text(photo.caption,
-                            style: const pw.TextStyle(fontSize: 10)),
-                      ),
-                  ],
-                );
-              }
-              return pw.SizedBox();
-            }),
+            ..._buildPhotoRows(invoicePhotos),
           ],
-
           // Footer
           pw.SizedBox(height: 32),
           pw.Divider(),
@@ -328,19 +307,71 @@ class InvoiceService {
     final output = invoiceNumber == null
         ? await getTemporaryDirectory()
         : await _invoiceDirectory(visit.dateTime.year);
-    final date = visit.dateTime.toIso8601String().split('T').first;
-    final docType = visit.paid ? 'Receipt' : 'Invoice';
-    final safeClientName = client.fullName
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
 
-    final fileName = invoiceNumber == null
-        ? '${safeClientName}_${date}_$docType.pdf'
-        : _buildInvoiceFileName(client, visit.dateTime, output);
+    // Always use LastName_FirstName_YYYY-MM-DD.pdf regardless of whether
+    // this is a temporary preview or a saved invoice. The old fallback used
+    // safeClientName_date_docType.pdf for the temporary path — that's gone.
+    final fileName = _buildInvoiceFileName(client, visit.dateTime, output);
     final file = File(p.join(output.path, fileName));
     await file.writeAsBytes(await pdf.save());
     return file;
+  }
+
+  /// Lays photos out two per row. Each cell is fixed at 150pt tall so two
+  /// photos fit side-by-side on a letter page with standard margins.
+  /// Captions sit directly below their photo within the cell.
+  static List<pw.Widget> _buildPhotoRows(List<VisitPhoto> photos) {
+    const double photoHeight = 150;
+    const double captionSize = 9.0;
+    const double gutterSize = 8.0;
+    final rows = <pw.Widget>[];
+
+    for (var i = 0; i < photos.length; i += 2) {
+      final leftPhoto = photos[i];
+      final rightPhoto = i + 1 < photos.length ? photos[i + 1] : null;
+
+      pw.Widget buildCell(VisitPhoto photo) {
+        final file = File(photo.path);
+        if (!file.existsSync()) return pw.SizedBox();
+        return pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Image(
+                pw.MemoryImage(file.readAsBytesSync()),
+                height: photoHeight,
+                fit: pw.BoxFit.cover,
+              ),
+              if (photo.caption.isNotEmpty)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(top: 3),
+                  child: pw.Text(
+                    photo.caption,
+                    style: const pw.TextStyle(fontSize: captionSize),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }
+
+      rows.add(
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            buildCell(leftPhoto),
+            if (rightPhoto != null) ...[
+              pw.SizedBox(width: gutterSize),
+              buildCell(rightPhoto),
+            ] else
+              // Placeholder so left photo doesn't stretch full width
+              pw.Expanded(child: pw.SizedBox()),
+          ],
+        ),
+      );
+      rows.add(pw.SizedBox(height: gutterSize));
+    }
+    return rows;
   }
 
   static String _buildInvoiceFileName(Client client, DateTime date, Directory dir) {
