@@ -29,6 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _restoring = false;
   String _currencySymbol = '\$';
   String _distanceUnit = 'mi';
+  String _terrainThemeId = 'desert';
 
   static const _presetCurrencies = [
     '\$',
@@ -63,6 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _mileageRateCtrl.text = mileageRate.toString();
     _currencySymbol = await DatabaseService.getCurrencySymbol();
     _distanceUnit = await DatabaseService.getDistanceUnit();
+    _terrainThemeId = await DatabaseService.getTerrainThemeId();
 
     if (_isCustomCurrency) {
       _customCurrencyCtrl.text = _currencySymbol;
@@ -130,6 +132,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     await DatabaseService.setDistanceUnit(_distanceUnit);
     AppUtils.initDistanceUnit(_distanceUnit);
+
+    await DatabaseService.setTerrainThemeId(_terrainThemeId);
+    AppUtils.applyTerrainTheme(_terrainThemeId);
 
     InvoiceService.setCompanyInfo(
       CompanyInfo(
@@ -235,6 +240,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Text('App Theme', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text('Choose your terrain',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: terrainThemes.map((terrain) {
+                final isSelected = _terrainThemeId == terrain.id;
+                return GestureDetector(
+                  onTap: () => setState(() => _terrainThemeId = terrain.id),
+                  child: Container(
+                    width: 72,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? terrain.seed
+                            : Colors.transparent,
+                        width: 3,
+                      ),
+                      color: isSelected
+                          ? terrain.seed.withAlpha(31)
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(terrain.emoji,
+                            style: const TextStyle(fontSize: 28)),
+                        const SizedBox(height: 4),
+                        Text(
+                          terrain.name,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected ? terrain.seed : null,
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(Icons.check_circle,
+                              color: terrain.seed, size: 14),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text('Company Information',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),

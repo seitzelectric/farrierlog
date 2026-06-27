@@ -19,6 +19,13 @@ class _FarrierLogAppState extends State<FarrierLogApp> {
     super.initState();
     DatabaseService.getCurrencySymbol().then(AppUtils.initCurrencySymbol);
     DatabaseService.getDistanceUnit().then(AppUtils.initDistanceUnit);
+    DatabaseService.getTerrainThemeId().then((id) {
+      AppUtils.initTerrainTheme(id);
+      if (mounted) setState(() {});
+    });
+    AppUtils.setThemeChangedCallback(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -35,12 +42,12 @@ class _FarrierLogAppState extends State<FarrierLogApp> {
       ],
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.brown,
+        colorSchemeSeed: AppUtils.terrainSeedColor,
         brightness: Brightness.light,
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.brown,
+        colorSchemeSeed: AppUtils.terrainSeedColor,
         brightness: Brightness.dark,
       ),
       themeMode: ThemeMode.system,

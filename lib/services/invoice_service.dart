@@ -73,6 +73,7 @@ class InvoiceService {
     List<VisitCharge> charges = const [],
     required List<VisitPhoto> photos,
     String? invoiceNumber,
+    bool includePhotos = true,
   }) async {
     await loadCompanyInfo();
 
@@ -283,15 +284,6 @@ class InvoiceService {
             ),
           ),
 
-          // Photos — two per row to maximise page use
-          if (invoicePhotos.isNotEmpty) ...[
-            pw.SizedBox(height: 24),
-            pw.Text('Photos',
-                style:
-                    const pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            ..._buildPhotoRows(invoicePhotos),
-          ],
           // Footer
           pw.SizedBox(height: 32),
           pw.Divider(),
@@ -304,9 +296,36 @@ class InvoiceService {
       ),
     );
 
-    final output = invoiceNumber == null
+    if (includePhotos && invoicePhotos.isNotEmpty) {
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.letter,
+          margin: const pw.EdgeInsets.all(32),
+          header: (context) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Photo Documentation',
+                style: const pw.TextStyle(
+                    fontSize: 16, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.Text(
+                '${client.fullName} — ${AppUtils.formatDate(visit.dateTime)}',
+                style: const pw.TextStyle(fontSize: 10),
+              ),
+              pw.Divider(),
+              pw.SizedBox(height: 8),
+            ],
+          ),
+          build: (context) => _buildPhotoRows(invoicePhotos),
+        ),
+      );
+    }
+
+    final output = (invoiceNumber == null || !includePhotos)
         ? await getTemporaryDirectory()
         : await _invoiceDirectory(visit.dateTime.year);
+
 
     // Always use LastName_FirstName_YYYY-MM-DD.pdf regardless of whether
     // this is a temporary preview or a saved invoice. The old fallback used
@@ -321,7 +340,7 @@ class InvoiceService {
   /// photos fit side-by-side on a letter page with standard margins.
   /// Captions sit directly below their photo within the cell.
   static List<pw.Widget> _buildPhotoRows(List<VisitPhoto> photos) {
-    const double photoHeight = 150;
+    const double photoHeight = 200;
     const double captionSize = 9.0;
     const double gutterSize = 8.0;
     final rows = <pw.Widget>[];

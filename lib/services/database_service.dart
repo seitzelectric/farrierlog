@@ -868,6 +868,12 @@ class DatabaseService {
   static Future<void> setDistanceUnit(String unit) async =>
       await setSetting(_distanceUnitKey, unit);
 
+  static const String _terrainThemeKey = 'terrain_theme';
+  static Future<String> getTerrainThemeId() async =>
+      await getSetting(_terrainThemeKey, defaultValue: 'desert');
+  static Future<void> setTerrainThemeId(String id) async =>
+      await setSetting(_terrainThemeKey, id);
+
   // ==================== PHOTO OPERATIONS ====================
 
   static Future<int> insertPhoto(VisitPhoto photo) async {
@@ -1118,6 +1124,88 @@ class DatabaseService {
   }
 
   // ==================== STATISTICS ====================
+
+  static Future<Map<String, double>> getMileageSummary() async {
+    final db = await database;
+    final now = DateTime.now();
+
+    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+    final startOfYear = DateTime(now.year, 1, 1).toIso8601String();
+    final endOfNow = now.toIso8601String();
+
+    double sumMileage(List<Map<String, dynamic>> rows) =>
+        (rows.first['total'] as num?)?.toDouble() ?? 0.0;
+
+    final monthRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(vc.quantity), 0) as total
+      FROM visit_charges vc
+      JOIN visits v ON vc.visit_id = v.id
+      WHERE vc.type IN ('mileage', 'transport')
+        AND v.datetime >= ? AND v.datetime <= ?
+    ''', [startOfMonth, endOfNow]);
+
+    final yearRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(vc.quantity), 0) as total
+      FROM visit_charges vc
+      JOIN visits v ON vc.visit_id = v.id
+      WHERE vc.type IN ('mileage', 'transport')
+        AND v.datetime >= ? AND v.datetime <= ?
+    ''', [startOfYear, endOfNow]);
+
+    return {
+      'month': sumMileage(monthRows),
+      'year': sumMileage(yearRows),
+    };
+  }
+
+  static Future<Map<String, double>> getRevenueSummary() async {
+    final db = await database;
+    final now = DateTime.now();
+
+    final startOfMonth = DateTime(now.year, now.month, 1).toIso8601String();
+    final startOfYear = DateTime(now.year, 1, 1).toIso8601String();
+    final endOfMonth =
+        DateTime(now.year, now.month + 1, 0, 23, 59, 59).toIso8601String();
+    final endOfYear =
+        DateTime(now.year, 12, 31, 23, 59, 59).toIso8601String();
+    final nowStr = now.toIso8601String();
+
+    Future<double> earnedIn(String from, String to) async {
+      final rows = await db.rawQuery('''
+        SELECT COALESCE(SUM(sl.price * sl.quantity), 0) +
+               COALESCE((SELECT SUM(vc2.quantity * vc2.rate)
+                         FROM visit_charges vc2
+                         WHERE vc2.visit_id = v.id), 0) as total
+        FROM visits v
+        JOIN invoices i ON i.visit_id = v.id
+        LEFT JOIN service_lines sl ON sl.visit_id = v.id
+        WHERE v.datetime >= ? AND v.datetime <= ?
+      ''', [from, to]);
+      return (rows.first['total'] as num?)?.toDouble() ?? 0.0;
+    }
+
+    Future<double> projectedIn(String from, String to) async {
+      final rows = await db.rawQuery('''
+        SELECT COALESCE(SUM(sl.price * sl.quantity), 0) +
+               COALESCE((SELECT SUM(vc2.quantity * vc2.rate)
+                         FROM visit_charges vc2
+                         WHERE vc2.visit_id = v.id), 0) as total
+        FROM visits v
+        LEFT JOIN service_lines sl ON sl.visit_id = v.id
+        WHERE v.datetime >= ? AND v.datetime <= ?
+          AND v.datetime > ?
+          AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.visit_id = v.id)
+      ''', [from, to, nowStr]);
+      return (rows.first['total'] as num?)?.toDouble() ?? 0.0;
+    }
+
+    return {
+      'earnedMonth': await earnedIn(startOfMonth, endOfMonth),
+      'earnedYear': await earnedIn(startOfYear, endOfYear),
+      'projectedMonth': await projectedIn(startOfMonth, endOfMonth),
+      'projectedYear': await projectedIn(startOfYear, endOfYear),
+    };
+  }
 
   static Future<Map<String, dynamic>> getStats() async {
     final db = await database;

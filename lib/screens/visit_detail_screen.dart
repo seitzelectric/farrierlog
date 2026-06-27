@@ -574,31 +574,79 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       final dateStr = _visit.dateTime.toIso8601String().split('T').first;
       final shareFileName = '${namePart}_$dateStr.pdf';
 
+      final hasInvoicePhotos = _photos.any((p) => p.includeOnInvoice);
       showModalBottomSheet(
         context: context,
-        builder: (_) => SafeArea(
+        builder: (bsCtx) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(Icons.share),
-                title: const Text('Share Invoice (PDF)'),
-                subtitle:
-                    const Text('Send via any app - Gmail, WhatsApp, etc.'),
-                onTap: () {
-                  Navigator.pop(context);
-                  InvoiceService.shareInvoice(
-                    file,
-                    subject: 'Invoice for ${client.fullName}',
-                    fileName: shareFileName,
-                  );
-                },
-              ),
+              if (hasInvoicePhotos) ...[
+                ListTile(
+                  leading: const Icon(Icons.receipt_long),
+                  title: const Text('Share Invoice Only (no photos)'),
+                  subtitle: const Text(
+                      'Clean invoice — ideal for clients and accounting'),
+                  onTap: () async {
+                    Navigator.pop(bsCtx);
+                    try {
+                      final invoiceOnlyFile =
+                          await InvoiceService.generateInvoice(
+                        visit: _visit,
+                        client: client,
+                        serviceLines: _serviceLines,
+                        charges: _charges,
+                        photos: _photos,
+                        invoiceNumber: invoiceNumber,
+                        includePhotos: false,
+                      );
+                      await InvoiceService.shareInvoice(
+                        invoiceOnlyFile,
+                        subject: 'Invoice for ${client.fullName}',
+                        fileName: shareFileName,
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error sharing invoice: $e')),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Share Invoice + Photos'),
+                  subtitle:
+                      const Text('Full document with photo documentation'),
+                  onTap: () {
+                    Navigator.pop(bsCtx);
+                    InvoiceService.shareInvoice(
+                      file,
+                      subject: 'Invoice for ${client.fullName}',
+                      fileName: shareFileName,
+                    );
+                  },
+                ),
+              ] else
+                ListTile(
+                  leading: const Icon(Icons.share),
+                  title: const Text('Share Invoice (PDF)'),
+                  subtitle:
+                      const Text('Send via any app - Gmail, WhatsApp, etc.'),
+                  onTap: () {
+                    Navigator.pop(bsCtx);
+                    InvoiceService.shareInvoice(
+                      file,
+                      subject: 'Invoice for ${client.fullName}',
+                      fileName: shareFileName,
+                    );
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.print),
                 title: const Text('Print Invoice'),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.pop(bsCtx);
                   InvoiceService.printInvoice(file);
                 },
               ),
@@ -691,10 +739,71 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     final file = await _ensureInvoiceFile(invoice);
     if (file == null) return;
 
-    await InvoiceService.shareInvoice(
-      file,
-      subject: 'Invoice ${invoice.invoiceNumber}',
-      fileName: invoice.fileName,
+    final hasInvoicePhotos = _photos.any((p) => p.includeOnInvoice);
+    if (!hasInvoicePhotos || !mounted) {
+      await InvoiceService.shareInvoice(
+        file,
+        subject: 'Invoice ${invoice.invoiceNumber}',
+        fileName: invoice.fileName,
+      );
+      return;
+    }
+
+    final client = _client;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Share Invoice Only (no photos)'),
+              subtitle: const Text(
+                  'Clean invoice — ideal for clients and accounting'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                if (client == null) return;
+                try {
+                  final invoiceOnlyFile =
+                      await InvoiceService.generateInvoice(
+                    visit: _visit,
+                    client: client,
+                    serviceLines: _serviceLines,
+                    charges: _charges,
+                    photos: _photos,
+                    invoiceNumber: invoice.invoiceNumber,
+                    includePhotos: false,
+                  );
+                  await InvoiceService.shareInvoice(
+                    invoiceOnlyFile,
+                    subject: 'Invoice ${invoice.invoiceNumber}',
+                    fileName: invoice.fileName,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error sharing invoice: $e')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Share Invoice + Photos'),
+              subtitle: const Text('Full document with photo documentation'),
+              onTap: () {
+                Navigator.pop(ctx);
+                InvoiceService.shareInvoice(
+                  file,
+                  subject: 'Invoice ${invoice.invoiceNumber}',
+                  fileName: invoice.fileName,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -996,7 +1105,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           if (hasLines)
             IconButton(
               icon: const Icon(Icons.receipt_long),
-              tooltip: _invoices.isEmpty ? 'Generate Invoice' : 'View / Edit Invoice',
+              tooltip: _invoices.isEmpty ? 'Generate Invoice' : 'Regenerate Invoice',
               onPressed: _generateInvoice,
             ),
           PopupMenuButton<String>(
@@ -1257,7 +1366,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   icon: const Icon(Icons.receipt_long),
                   label: Text(_invoices.isEmpty
                       ? 'Generate Invoice'
-                      : 'View / Edit Invoice'),
+                      : 'Regenerate Invoice'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
                   ),

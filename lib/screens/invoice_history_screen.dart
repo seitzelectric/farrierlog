@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
+import '../services/invoice_service.dart';
 import '../utils/utils.dart';
 
 class InvoiceHistoryScreen extends StatefulWidget {
@@ -162,14 +163,86 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
   Future<void> _shareInvoice(Map<String, dynamic> row) async {
     final filePath = row['file_path'] as String? ?? '';
     final fileName = row['file_name'] as String? ?? 'invoice.pdf';
-    if (filePath.isEmpty) return;
+    final invoiceNumber = row['invoice_number'] as String? ?? '';
+    final visitId = row['visit_id'] as int?;
+
+    if (filePath.isEmpty || visitId == null) return;
     final file = File(filePath);
     if (!await file.exists()) return;
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: 'Invoice ${row['invoice_number'] ?? ''}',
-        text: fileName,
+
+    final photos = await DatabaseService.getPhotos(visitId);
+    final hasInvoicePhotos = photos.any((p) => p.includeOnInvoice);
+
+    if (!hasInvoicePhotos || !mounted) {
+      await InvoiceService.shareInvoice(
+        file,
+        subject: 'Invoice $invoiceNumber',
+        fileName: fileName,
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Share Invoice Only (no photos)'),
+              subtitle: const Text(
+                  'Clean invoice — ideal for clients and accounting'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  final visit = await DatabaseService.getVisit(visitId);
+                  if (visit == null || !mounted) return;
+                  final client =
+                      await DatabaseService.getClient(visit.clientId);
+                  if (client == null || !mounted) return;
+                  final serviceLines =
+                      await DatabaseService.getServiceLines(visitId);
+                  final charges =
+                      await DatabaseService.getVisitCharges(visitId);
+                  final invoiceOnlyFile =
+                      await InvoiceService.generateInvoice(
+                    visit: visit,
+                    client: client,
+                    serviceLines: serviceLines,
+                    charges: charges,
+                    photos: photos,
+                    invoiceNumber: invoiceNumber,
+                    includePhotos: false,
+                  );
+                  await InvoiceService.shareInvoice(
+                    invoiceOnlyFile,
+                    subject: 'Invoice $invoiceNumber',
+                    fileName: fileName,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error sharing invoice: $e')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Share Invoice + Photos'),
+              subtitle: const Text('Full document with photo documentation'),
+              onTap: () {
+                Navigator.pop(ctx);
+                InvoiceService.shareInvoice(
+                  file,
+                  subject: 'Invoice $invoiceNumber',
+                  fileName: fileName,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
