@@ -1418,7 +1418,15 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                     ),
                     title: Text(invoice.invoiceNumber),
                     subtitle: Text(
-                      '${AppUtils.formatDate(invoice.issuedAt)} · ${invoice.paidAt != null ? 'Paid' : 'Unpaid'}',
+                      '${AppUtils.formatDate(invoice.issuedAt)} · ${invoice.paidAt != null ? 'Paid in Full' : 'Unpaid'}',
+                      style: TextStyle(
+                        color: invoice.paidAt != null
+                            ? Colors.green
+                            : null,
+                        fontWeight: invoice.paidAt != null
+                            ? FontWeight.w600
+                            : null,
+                      ),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

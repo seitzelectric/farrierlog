@@ -240,61 +240,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('App Theme', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text('Choose your terrain',
-              style: Theme.of(context).textTheme.bodySmall),
+          Text('Color', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: terrainThemes.map((terrain) {
-                final isSelected = _terrainThemeId == terrain.id;
-                return GestureDetector(
-                  onTap: () => setState(() => _terrainThemeId = terrain.id),
-                  child: Container(
-                    width: 72,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSelected
-                            ? terrain.seed
-                            : Colors.transparent,
-                        width: 3,
-                      ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: terrainThemes.map((theme) {
+              final isSelected = _terrainThemeId == theme.id;
+              return GestureDetector(
+                onTap: () => setState(() => _terrainThemeId = theme.id),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: theme.seed,
+                    shape: BoxShape.circle,
+                    border: Border.all(
                       color: isSelected
-                          ? terrain.seed.withAlpha(31)
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Colors.transparent,
+                      width: 3,
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(terrain.emoji,
-                            style: const TextStyle(fontSize: 28)),
-                        const SizedBox(height: 4),
-                        Text(
-                          terrain.name,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isSelected ? terrain.seed : null,
-                          ),
-                        ),
-                        if (isSelected)
-                          Icon(Icons.check_circle,
-                              color: terrain.seed, size: 14),
-                      ],
-                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: theme.seed.withAlpha(120),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            )
+                          ]
+                        : null,
                   ),
-                );
-              }).toList(),
-            ),
+                  child: isSelected
+                      ? const Icon(Icons.check,
+                          color: Colors.white, size: 22)
+                      : null,
+                ),
+              );
+            }).toList(),
           ),
           const SizedBox(height: 24),
           Text('Company Information',

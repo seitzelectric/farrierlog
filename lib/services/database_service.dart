@@ -870,7 +870,7 @@ class DatabaseService {
 
   static const String _terrainThemeKey = 'terrain_theme';
   static Future<String> getTerrainThemeId() async =>
-      await getSetting(_terrainThemeKey, defaultValue: 'desert');
+      await getSetting(_terrainThemeKey, defaultValue: 'terracotta_sage');
   static Future<void> setTerrainThemeId(String id) async =>
       await setSetting(_terrainThemeKey, id);
 

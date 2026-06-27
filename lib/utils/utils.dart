@@ -5,54 +5,42 @@ import 'package:url_launcher/url_launcher.dart';
 class TerrainTheme {
   final String id;
   final String name;
-  final String emoji;
   final Color seed;
 
   const TerrainTheme({
     required this.id,
     required this.name,
-    required this.emoji,
     required this.seed,
   });
 }
 
 const List<TerrainTheme> terrainThemes = [
   TerrainTheme(
-    id: 'desert',
-    name: 'Desert',
-    emoji: '🏜️',
+    id: 'navy_cream',
+    name: 'Navy & Cream',
+    seed: Color(0xFF1B3A6B),
+  ),
+  TerrainTheme(
+    id: 'terracotta_sage',
+    name: 'Terracotta & Sage',
     seed: Color(0xFFB5541C),
   ),
   TerrainTheme(
-    id: 'forest',
-    name: 'Forest',
-    emoji: '🌲',
-    seed: Color(0xFF2D6A4F),
+    id: 'charcoal_yellow',
+    name: 'Charcoal & Yellow',
+    seed: Color(0xFF3D3D3D),
   ),
   TerrainTheme(
-    id: 'ocean',
-    name: 'Ocean',
-    emoji: '🌊',
-    seed: Color(0xFF1A6B8A),
-  ),
-  TerrainTheme(
-    id: 'mountain',
-    name: 'Mountain',
-    emoji: '⛰️',
-    seed: Color(0xFF4A5568),
-  ),
-  TerrainTheme(
-    id: 'prairie',
-    name: 'Prairie',
-    emoji: '🌾',
-    seed: Color(0xFFB78A2E),
+    id: 'dusty_rose_olive',
+    name: 'Dusty Rose & Olive',
+    seed: Color(0xFFB07080),
   ),
 ];
 
 class AppUtils {
   static String _currencySymbol = '\$';
   static String _distanceUnit = 'mi';
-  static String _terrainThemeId = 'desert';
+  static String _terrainThemeId = 'terracotta_sage';
   static VoidCallback? _onThemeChanged;
 
   static void initCurrencySymbol(String symbol) =>

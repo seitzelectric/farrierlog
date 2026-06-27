@@ -135,16 +135,27 @@ class InvoiceService {
           ),
           pw.SizedBox(height: 24),
 
-          // Invoice Title
-          pw.Center(
-            child: pw.Text('INVOICE',
-                style:
-                    const pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+          // Invoice Title — top right
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Date: ${AppUtils.formatDate(DateTime.now())}'),
+                  pw.Text(invoiceNumber != null
+                      ? 'Invoice #$invoiceNumber'
+                      : 'Visit #${visit.id}'),
+                ],
+              ),
+              pw.Text(
+                visit.paid ? 'PAID IN FULL' : 'INVOICE DUE',
+                style: const pw.TextStyle(
+                    fontSize: 18, fontWeight: pw.FontWeight.bold),
+              ),
+            ],
           ),
-          pw.Text('Date: ${AppUtils.formatDate(DateTime.now())}'),
-          pw.Text(invoiceNumber != null
-              ? 'Invoice #$invoiceNumber'
-              : 'Visit #${visit.id}'),
           pw.SizedBox(height: 16),
 
           // Service Lines Table
@@ -261,36 +272,16 @@ class InvoiceService {
             ),
           ],
 
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 24),
 
-          // Payment Status
-          pw.Container(
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(),
-              color: visit.paid ? PdfColors.green100 : PdfColors.red100,
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Status:',
-                    style: const pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text(visit.paid ? 'PAID' : 'UNPAID',
-                    style: pw.TextStyle(
-                      fontWeight: pw.FontWeight.bold,
-                      color: visit.paid ? PdfColors.green : PdfColors.red,
-                    )),
-              ],
-            ),
-          ),
-
-          // Footer
-          pw.SizedBox(height: 32),
+          // Footer — thank you replaces the old status bar
           pw.Divider(),
           pw.Center(
-            child: pw.Text('Thank you for your business!',
-                style:
-                    const pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
+            child: pw.Text(
+              'Thank you for your business!',
+              style: const pw.TextStyle(
+                  fontSize: 10, fontStyle: pw.FontStyle.italic),
+            ),
           ),
         ],
       ),

@@ -397,11 +397,6 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addVisit,
-        icon: const Icon(Icons.add),
-        label: const Text('New Visit'),
-      ),
     );
   }
 }
