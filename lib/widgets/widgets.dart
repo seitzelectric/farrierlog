@@ -425,3 +425,59 @@ class ConfirmationDialog extends StatelessWidget {
     );
   }
 }
+
+/// Shows how long since the client's last confirmed visit, color-coded
+/// by how overdue they may be for a return appointment.
+class LastVisitBadge extends StatelessWidget {
+  final String? lastVisitDateStr;
+  final int upcomingCount;
+
+  const LastVisitBadge({
+    super.key,
+    required this.lastVisitDateStr,
+    required this.upcomingCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (upcomingCount > 0) {
+      return _badge(context, 'Scheduled', Colors.green);
+    }
+
+    if (lastVisitDateStr == null) {
+      return _badge(context, 'No visits yet', Colors.grey);
+    }
+
+    final lastVisit = DateTime.tryParse(lastVisitDateStr!);
+    if (lastVisit == null) return const SizedBox.shrink();
+
+    final weeks = DateTime.now().difference(lastVisit).inDays ~/ 7;
+
+    if (weeks < 5) {
+      return _badge(context, '$weeks wk ago', Colors.green.shade700);
+    } else if (weeks < 8) {
+      return _badge(context, '$weeks wk ago', Colors.orange.shade700);
+    } else {
+      return _badge(context, '$weeks wk ago', Colors.red.shade700);
+    }
+  }
+
+  Widget _badge(BuildContext context, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        border: Border.all(color: color.withAlpha(80)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}

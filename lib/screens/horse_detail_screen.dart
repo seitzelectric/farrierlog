@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../services/database_service.dart';
+import '../services/invoice_service.dart';
 import '../utils/utils.dart';
 import '../widgets/widgets.dart';
 import 'screens.dart';
@@ -64,6 +65,19 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
       MaterialPageRoute(builder: (_) => VisitDetailScreen(visit: visit)),
     );
     _loadData();
+  }
+
+  Future<void> _shareProgressReport() async {
+    if (_photos.isEmpty) return;
+    final file = await InvoiceService.generateProgressReport(
+      horse: _animal.horse,
+      client: _animal.client,
+      photos: _photos,
+    );
+    await InvoiceService.shareInvoice(
+      file,
+      subject: '${_animal.horse.name} — Progress Report',
+    );
   }
 
   void _showPhotoFullScreen(VisitPhoto photo) {
@@ -239,6 +253,21 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                         ],
                       ),
                     ),
+                    if (index == 0 && _photos.length >= 2)
+                      TextButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PhotoComparisonScreen(
+                              photos: _photos,
+                              initialLeftIndex: 0,
+                              initialRightIndex: _photos.length - 1,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.compare, size: 18),
+                        label: const Text('Compare'),
+                      ),
                     TextButton.icon(
                       onPressed: () => _openVisit(visit),
                       icon: const Icon(Icons.open_in_new, size: 18),
@@ -276,7 +305,17 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Animal')),
+      appBar: AppBar(
+        title: const Text('Animal'),
+        actions: [
+          if (_photos.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              tooltip: 'Progress Report',
+              onPressed: _shareProgressReport,
+            ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -289,7 +328,19 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                   SectionHeader(title: 'Visit History (${_visits.length})'),
                   _buildVisitHistory(),
                   const SizedBox(height: 16),
-                  const SectionHeader(title: 'Photo History'),
+                  SectionHeader(
+                    title: 'Photo History',
+                    onAdd: _photos.length >= 2
+                        ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    PhotoComparisonScreen(photos: _photos),
+                              ),
+                            )
+                        : null,
+                    addLabel: 'Compare',
+                  ),
                   _buildPhotoHistory(),
                 ],
               ),

@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../models/models.dart';
 import '../services/backup_service.dart';
 import '../services/export_service.dart';
 import '../services/invoice_service.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
+import 'onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _emailCtrl = TextEditingController();
   final _mileageRateCtrl = TextEditingController();
   final _customCurrencyCtrl = TextEditingController();
+  final _reminderCtrl = TextEditingController();
   String? _logoPath;
   bool _startCalendarWeekOnMonday = false;
   bool _exporting = false;
@@ -30,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _currencySymbol = '\$';
   String _distanceUnit = 'mi';
   String _terrainThemeId = 'desert';
+  List<ServiceTemplate> _templates = [];
 
   static const _presetCurrencies = [
     '\$',
@@ -65,6 +69,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _currencySymbol = await DatabaseService.getCurrencySymbol();
     _distanceUnit = await DatabaseService.getDistanceUnit();
     _terrainThemeId = await DatabaseService.getTerrainThemeId();
+    _templates = await DatabaseService.getServiceTemplates();
+    _reminderCtrl.text = await DatabaseService.getReminderTemplate();
 
     if (_isCustomCurrency) {
       _customCurrencyCtrl.text = _currencySymbol;
@@ -97,6 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _emailCtrl.dispose();
     _mileageRateCtrl.dispose();
     _customCurrencyCtrl.dispose();
+    _reminderCtrl.dispose();
     super.dispose();
   }
 
@@ -135,6 +142,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     await DatabaseService.setTerrainThemeId(_terrainThemeId);
     AppUtils.applyTerrainTheme(_terrainThemeId);
+
+    await DatabaseService.setReminderTemplate(_reminderCtrl.text.trim());
 
     InvoiceService.setCompanyInfo(
       CompanyInfo(
@@ -229,6 +238,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
+  }
+
+  Future<void> _deleteTemplate(ServiceTemplate template) async {
+    await DatabaseService.deleteServiceTemplate(template.id!);
+    final templates = await DatabaseService.getServiceTemplates();
+    if (mounted) setState(() => _templates = templates);
+  }
+
+  Future<void> _addTemplateDialog() async {
+    final descCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Service Template'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: descCtrl,
+              decoration: const InputDecoration(labelText: 'Service'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceCtrl,
+              decoration: const InputDecoration(labelText: 'Price'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+    final description = descCtrl.text.trim();
+    if (description.isEmpty) return;
+    final price = double.tryParse(priceCtrl.text.trim()) ?? 0;
+    await DatabaseService.insertServiceTemplate(
+      ServiceTemplate(description: description, price: price),
+    );
+    final templates = await DatabaseService.getServiceTemplates();
+    if (mounted) setState(() => _templates = templates);
   }
 
   @override
@@ -425,6 +487,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: 24),
+          Text('Reminder Message',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _reminderCtrl,
+            decoration: const InputDecoration(
+              labelText: 'SMS Reminder Template',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 4,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Use {name}, {date}, and {time} — they\'ll be filled in automatically.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
@@ -432,6 +511,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 48)),
           ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Service Templates',
+                  style: Theme.of(context).textTheme.titleLarge),
+              IconButton(
+                onPressed: _addTemplateDialog,
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'Add template',
+              ),
+            ],
+          ),
+          if (_templates.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No saved templates yet',
+                  style: Theme.of(context).textTheme.bodySmall),
+            )
+          else
+            ..._templates.map((template) => Dismissible(
+                  key: ValueKey('template-${template.id}'),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (_) => _deleteTemplate(template),
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(template.description),
+                    subtitle: Text(AppUtils.formatCurrency(template.price)),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteTemplate(template),
+                    ),
+                  ),
+                )),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _exporting ? null : _exportData,
@@ -475,6 +594,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: Text(_restoring ? 'Restoring...' : 'Restore Backup'),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.help_outline),
+            title: const Text('Show welcome guide again'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OnboardingScreen()),
             ),
           ),
         ],

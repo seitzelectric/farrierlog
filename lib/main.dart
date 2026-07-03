@@ -51,7 +51,19 @@ class _FarrierLogAppState extends State<FarrierLogApp> {
         brightness: Brightness.dark,
       ),
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      home: FutureBuilder<bool>(
+        future: DatabaseService.isOnboardingComplete(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return snapshot.data!
+              ? const HomeScreen()
+              : const OnboardingScreen();
+        },
+      ),
     );
   }
 }

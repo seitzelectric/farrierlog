@@ -118,6 +118,24 @@ class AppUtils {
     return formatDate(dateTime);
   }
 
+  /// Builds a Google Maps directions URL with multiple stops in order.
+  static String multiStopRouteUrl(List<String> addresses) {
+    final clean = addresses
+        .where((a) => a.trim().isNotEmpty)
+        .map((a) => Uri.encodeComponent(a.trim()))
+        .toList();
+    if (clean.isEmpty) return '';
+    if (clean.length == 1) {
+      return 'https://www.google.com/maps/dir/?api=1&destination=${clean.first}';
+    }
+    final destination = clean.last;
+    final waypoints = clean.sublist(0, clean.length - 1).join('%7C');
+    return 'https://www.google.com/maps/dir/?api=1'
+        '&destination=$destination'
+        '&waypoints=$waypoints'
+        '&travelmode=driving';
+  }
+
   static String getInitials(String name) {
     final parts = name.trim().split(' ');
     if (parts.isEmpty || name.isEmpty) return '?';

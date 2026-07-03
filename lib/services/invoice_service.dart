@@ -327,6 +327,106 @@ class InvoiceService {
     return file;
   }
 
+  static Future<File> generateProgressReport({
+    required Horse horse,
+    required Client client,
+    required List<VisitPhotoWithVisit> photos,
+  }) async {
+    final pdf = pw.Document();
+
+    final byVisit = <int, List<VisitPhotoWithVisit>>{};
+    for (final entry in photos) {
+      byVisit.putIfAbsent(entry.visit.id!, () => []).add(entry);
+    }
+    final entries = byVisit.entries.toList()
+      ..sort((a, b) => a.value.first.visit.dateTime
+          .compareTo(b.value.first.visit.dateTime));
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.letter,
+        margin: const pw.EdgeInsets.all(32),
+        header: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Progress Report',
+                      style: const pw.TextStyle(
+                          fontSize: 18, fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.Text(horse.name,
+                        style: const pw.TextStyle(fontSize: 14)),
+                    pw.Text('Owner: ${client.fullName}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+                pw.Text(
+                  AppUtils.formatDate(DateTime.now()),
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+              ],
+            ),
+            pw.Divider(),
+            pw.SizedBox(height: 8),
+          ],
+        ),
+        build: (_) {
+          final widgets = <pw.Widget>[];
+
+          for (var i = 0; i < entries.length; i++) {
+            final entry = entries[i];
+            final visit = entry.value.first.visit;
+            final visitPhotos = entry.value.map((e) => e.photo).toList();
+
+            String? elapsed;
+            if (i > 0) {
+              final prev = entries[i - 1].value.first.visit;
+              final days =
+                  visit.dateTime.difference(prev.dateTime).inDays.abs();
+              final weeks = (days / 7).round();
+              elapsed = weeks > 0
+                  ? '$weeks week${weeks == 1 ? '' : 's'} since last visit'
+                  : '$days days since last visit';
+            }
+
+            widgets.addAll([
+              pw.Text(
+                AppUtils.formatDate(visit.dateTime),
+                style: const pw.TextStyle(
+                    fontSize: 12, fontWeight: pw.FontWeight.bold),
+              ),
+              if (elapsed != null)
+                pw.Text(elapsed,
+                    style: const pw.TextStyle(
+                        fontSize: 9, fontStyle: pw.FontStyle.italic)),
+              if (visit.notes.isNotEmpty)
+                pw.Text(visit.notes, style: const pw.TextStyle(fontSize: 9)),
+              pw.SizedBox(height: 6),
+              ..._buildPhotoRows(visitPhotos),
+              pw.SizedBox(height: 16),
+            ]);
+          }
+
+          return widgets;
+        },
+      ),
+    );
+
+    final dir = await getApplicationDocumentsDirectory();
+    final safeName =
+        horse.name.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_');
+    final date = DateTime.now().toIso8601String().split('T').first;
+    final file = File(p.join(dir.path, '${safeName}_progress_$date.pdf'));
+    await file.writeAsBytes(await pdf.save());
+    return file;
+  }
+
   /// Lays photos out two per row. Each cell is fixed at 150pt tall so two
   /// photos fit side-by-side on a letter page with standard margins.
   /// Captions sit directly below their photo within the cell.

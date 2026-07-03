@@ -26,8 +26,22 @@ void main() {
   });
 
   testWidgets('FarrierLog app starts', (WidgetTester tester) async {
-    await tester.pumpWidget(const FarrierLogApp());
+    await tester.runAsync(() async {
+      await tester.pumpWidget(const FarrierLogApp());
+      // The root route is gated behind an async onboarding check backed
+      // by real (isolate-based) sqflite I/O, which the fake test clock
+      // doesn't advance on its own — pump a few real ticks to let it
+      // resolve instead of pumpAndSettle, which never settles while the
+      // interim CircularProgressIndicator is animating.
+      for (var i = 0; i < 10; i++) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        await tester.pump();
+      }
+    });
 
-    expect(find.text('FarrierLog'), findsOneWidget);
+    // Fresh install with no clients lands on onboarding; existing
+    // installs land on the home screen. Either way, the app should
+    // start up successfully and render something FarrierLog-branded.
+    expect(find.textContaining('FarrierLog'), findsWidgets);
   });
 }

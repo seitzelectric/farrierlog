@@ -5,8 +5,9 @@ import '../models/models.dart';
 
 class DatabaseService {
   static Database? _db;
+  static Future<Database>? _opening;
   static const String _dbName = 'farrier_log_v2.db';
-  static const int _dbVersion = 10;
+  static const int _dbVersion = 11;
 
   static String get databaseName => _dbName;
   static int get databaseVersion => _dbVersion;
@@ -15,16 +16,34 @@ class DatabaseService {
       p.join(await getDatabasesPath(), _dbName);
 
   static Future<void> close() async {
+    await _opening;
     await _db?.close();
     _db = null;
+    _opening = null;
   }
 
+  /// Concurrent callers before the database has finished opening must
+  /// share the same in-flight open rather than each calling
+  /// [openDatabase] independently — doing so races against SQLite's file
+  /// locking and can hang indefinitely.
   static Future<Database> get database async {
     if (_db != null) return _db!;
+    if (_opening != null) return _opening!;
 
+    final opening = _openDatabase();
+    _opening = opening;
+    try {
+      _db = await opening;
+      return _db!;
+    } finally {
+      _opening = null;
+    }
+  }
+
+  static Future<Database> _openDatabase() async {
     final path = await databasePath;
 
-    _db = await openDatabase(
+    return await openDatabase(
       path,
       version: _dbVersion,
       onConfigure: (db) async {
@@ -41,8 +60,6 @@ class DatabaseService {
   ''');
       },
     );
-
-    return _db!;
   }
 
   static Future<void> _onCreate(Database db, int version) async {
@@ -157,6 +174,17 @@ class DatabaseService {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (visit_id) REFERENCES visits(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE service_templates(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        description TEXT NOT NULL DEFAULT '',
+        price REAL NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        is_group INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
       )
     ''');
 
@@ -278,6 +306,19 @@ class DatabaseService {
       await db.execute(
           "ALTER TABLE horses ADD COLUMN internal_notes TEXT NOT NULL DEFAULT ''");
     }
+
+    if (oldVersion < 11) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS service_templates(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          description TEXT NOT NULL DEFAULT '',
+          price REAL NOT NULL DEFAULT 0,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          is_group INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   // ==================== CLIENT OPERATIONS ====================
@@ -334,6 +375,34 @@ class DatabaseService {
     final rows = await db.query('clients', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return Client.fromMap(rows.first);
+  }
+
+  static Future<List<Map<String, dynamic>>> getClientsWithLastVisit({
+    String? searchQuery,
+  }) async {
+    final db = await database;
+    final where = searchQuery != null && searchQuery.isNotEmpty
+        ? "WHERE (c.first_name LIKE ? OR c.last_name LIKE ? OR c.address LIKE ?)"
+        : '';
+    final args = searchQuery != null && searchQuery.isNotEmpty
+        ? ['%$searchQuery%', '%$searchQuery%', '%$searchQuery%']
+        : <dynamic>[];
+
+    return await db.rawQuery('''
+      SELECT c.*,
+        (SELECT MAX(v.datetime)
+         FROM visits v
+         WHERE v.client_id = c.id
+           AND v.is_auto_generated = 0) AS last_visit_date,
+        (SELECT COUNT(*)
+         FROM visits v2
+         WHERE v2.client_id = c.id
+           AND v2.datetime > ?
+           AND v2.is_auto_generated = 0) AS upcoming_count
+      FROM clients c
+      $where
+      ORDER BY c.last_name COLLATE NOCASE, c.first_name COLLATE NOCASE
+    ''', [DateTime.now().toIso8601String(), ...args]);
   }
 
   // ==================== HORSE OPERATIONS ====================
@@ -819,6 +888,89 @@ class DatabaseService {
     return rows.map((r) => ServiceLine.fromMap(r)).toList();
   }
 
+  // ==================== SERVICE TEMPLATE OPERATIONS ====================
+
+  static Future<List<ServiceTemplate>> getServiceTemplates() async {
+    final db = await database;
+    final rows = await db.query(
+      'service_templates',
+      orderBy: 'description COLLATE NOCASE ASC',
+    );
+    return rows.map(ServiceTemplate.fromMap).toList();
+  }
+
+  static Future<int> insertServiceTemplate(ServiceTemplate t) async {
+    final db = await database;
+    return await db.insert('service_templates', t.toMap());
+  }
+
+  static Future<void> updateServiceTemplate(ServiceTemplate t) async {
+    final db = await database;
+    await db.update('service_templates', t.toMap(),
+        where: 'id = ?', whereArgs: [t.id]);
+  }
+
+  static Future<void> deleteServiceTemplate(int id) async {
+    final db = await database;
+    await db.delete('service_templates', where: 'id = ?', whereArgs: [id]);
+  }
+
+  static Future<List<Map<String, dynamic>>> getMonthlyRevenue({
+    int months = 12,
+  }) async {
+    final db = await database;
+    final now = DateTime.now();
+    final results = <Map<String, dynamic>>[];
+
+    for (int i = months - 1; i >= 0; i--) {
+      final month = DateTime(now.year, now.month - i, 1);
+      final nextMonth = DateTime(now.year, now.month - i + 1, 1);
+      final rows = await db.rawQuery('''
+        SELECT COALESCE(SUM(sl.price * sl.quantity), 0) +
+               COALESCE((SELECT SUM(vc.quantity * vc.rate)
+                         FROM visit_charges vc
+                         INNER JOIN visits vv ON vv.id = vc.visit_id
+                         INNER JOIN invoices ii ON ii.visit_id = vv.id
+                         WHERE vv.datetime >= ? AND vv.datetime < ?), 0) as total
+        FROM visits v
+        JOIN invoices i ON i.visit_id = v.id
+        LEFT JOIN service_lines sl ON sl.visit_id = v.id
+        WHERE v.datetime >= ? AND v.datetime < ?
+      ''', [
+        month.toIso8601String(),
+        nextMonth.toIso8601String(),
+        month.toIso8601String(),
+        nextMonth.toIso8601String(),
+      ]);
+
+      results.add({
+        'year': month.year,
+        'month': month.month,
+        'total': (rows.first['total'] as num?)?.toDouble() ?? 0.0,
+      });
+    }
+    return results;
+  }
+
+  static Future<List<Map<String, dynamic>>> getTodayRoute() async {
+    final db = await database;
+    final now = DateTime.now();
+    final startOfDay =
+        DateTime(now.year, now.month, now.day).toIso8601String();
+    final endOfDay =
+        DateTime(now.year, now.month, now.day, 23, 59, 59).toIso8601String();
+
+    return await db.rawQuery('''
+      SELECT v.*,
+             c.first_name, c.last_name, c.address, c.phone
+      FROM visits v
+      JOIN clients c ON v.client_id = c.id
+      WHERE v.datetime >= ? AND v.datetime <= ?
+        AND v.is_auto_generated = 0
+      ORDER BY v.datetime ASC
+    ''', [startOfDay, endOfDay]);
+  }
+
   // ==================== VISIT CHARGE OPERATIONS ====================
 
   static Future<List<VisitCharge>> getVisitCharges(int visitId) async {
@@ -873,6 +1025,62 @@ class DatabaseService {
       await getSetting(_terrainThemeKey, defaultValue: 'terracotta_sage');
   static Future<void> setTerrainThemeId(String id) async =>
       await setSetting(_terrainThemeKey, id);
+
+  static const String _reminderTemplateKey = 'reminder_template';
+
+  static Future<String> getReminderTemplate() async {
+    return await getSetting(
+      _reminderTemplateKey,
+      defaultValue:
+          'Hi {name}, this is a reminder of your farrier appointment on '
+          '{date} at {time}. Reply or call to reschedule. Thank you!',
+    );
+  }
+
+  static Future<void> setReminderTemplate(String template) async {
+    await setSetting(_reminderTemplateKey, template);
+  }
+
+  static const String _onboardingDoneKey = 'onboarding_complete';
+
+  static Future<bool> isOnboardingComplete() async {
+    final v = await getSetting(_onboardingDoneKey, defaultValue: 'false');
+    if (v == 'true') return true;
+
+    // Existing installs that already have data shouldn't suddenly see
+    // onboarding — treat any pre-existing client as having onboarded.
+    final clients = await getClients();
+    if (clients.isNotEmpty) {
+      await setOnboardingComplete();
+      return true;
+    }
+    return false;
+  }
+
+  static Future<void> setOnboardingComplete() async {
+    await setSetting(_onboardingDoneKey, 'true');
+  }
+
+  static Future<List<Map<String, dynamic>>>
+      getTomorrowVisitsForReminders() async {
+    final db = await database;
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final start = tomorrow.toIso8601String();
+    final end = DateTime(
+            tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59)
+        .toIso8601String();
+
+    return await db.rawQuery('''
+      SELECT v.*, c.first_name, c.last_name, c.phone
+      FROM visits v
+      JOIN clients c ON v.client_id = c.id
+      WHERE v.datetime >= ? AND v.datetime <= ?
+        AND v.is_auto_generated = 0
+        AND c.phone != ''
+      ORDER BY v.datetime ASC
+    ''', [start, end]);
+  }
 
   // ==================== PHOTO OPERATIONS ====================
 

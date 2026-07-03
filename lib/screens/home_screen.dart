@@ -3,7 +3,9 @@ import 'screens.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool openAddClientOnStart;
+
+  const HomeScreen({super.key, this.openAddClientOnStart = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -11,13 +13,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-
-  final _screens = const [
-    ClientListScreen(),
-    CalendarScreen(),
-    DashboardScreen(),
-    InvoiceHistoryScreen(),
-    AnimalListScreen(),
+  late final List<Widget> _screens = [
+    ClientListScreen(autoOpenAddDialog: widget.openAddClientOnStart),
+    const CalendarScreen(),
+    const DashboardScreen(),
+    const InvoiceHistoryScreen(),
+    const AnimalListScreen(),
   ];
 
   @override

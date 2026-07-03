@@ -1,4 +1,5 @@
 import '../widgets/widgets.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
@@ -16,6 +17,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic> _stats = {};
   List<Visit> _upcomingVisits = [];
   Map<String, double> _mileage = {};
+  List<Map<String, dynamic>> _monthlyRevenue = [];
   bool _loading = true;
 
   @override
@@ -34,12 +36,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       to: now.add(const Duration(days: 7)),
     );
     final mileage = await DatabaseService.getMileageSummary();
+    final monthlyRevenue = await DatabaseService.getMonthlyRevenue();
 
     if (mounted) {
       setState(() {
         _stats = stats;
         _upcomingVisits = upcoming;
         _mileage = mileage;
+        _monthlyRevenue = monthlyRevenue;
         _loading = false;
       });
     }
@@ -68,6 +72,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Card(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: ListTile(
+                leading: Icon(
+                  Icons.route,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                title: Text(
+                  "Today's Route",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                subtitle: Text(
+                  'See all of today\'s stops in order',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TodayRouteScreen()),
+                  );
+                  _loadData();
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
@@ -152,6 +190,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _RevenueChartCard(data: _monthlyRevenue),
             const SizedBox(height: 24),
             SectionHeader(
               title: 'Next 7 Days',
@@ -184,6 +224,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   },
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RevenueChartCard extends StatelessWidget {
+  final List<Map<String, dynamic>> data;
+  const _RevenueChartCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    if (data.isEmpty) return const SizedBox.shrink();
+    final maxVal = data
+        .map((d) => d['total'] as double)
+        .fold<double>(0, (a, b) => a > b ? a : b);
+
+    const monthNames = [
+      '',
+      'J',
+      'F',
+      'M',
+      'A',
+      'M',
+      'J',
+      'J',
+      'A',
+      'S',
+      'O',
+      'N',
+      'D'
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart,
+                    color: Theme.of(context).colorScheme.primary, size: 18),
+                const SizedBox(width: 8),
+                Text('Revenue Trend (12 mo)',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 160,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxVal == 0 ? 100 : maxVal * 1.2,
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, _, rod, __) {
+                        final d = data[group.x.toInt()];
+                        return BarTooltipItem(
+                          AppUtils.formatCurrency(d['total'] as double),
+                          const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11),
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, _) {
+                          final i = value.toInt();
+                          if (i < 0 || i >= data.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final m = data[i]['month'] as int;
+                          return Text(monthNames[m],
+                              style: const TextStyle(fontSize: 9));
+                        },
+                      ),
+                    ),
+                  ),
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  barGroups: List.generate(data.length, (i) {
+                    return BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: data[i]['total'] as double,
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 12,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(3),
+                            topRight: Radius.circular(3),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ),
           ],
         ),
       ),

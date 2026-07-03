@@ -409,6 +409,60 @@ class VisitCharge {
       );
 }
 
+class ServiceTemplate {
+  final int? id;
+  final String description;
+  final double price;
+  final int quantity;
+  final bool isGroup;
+  final DateTime createdAt;
+
+  ServiceTemplate({
+    this.id,
+    required this.description,
+    required this.price,
+    this.quantity = 1,
+    this.isGroup = false,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() => {
+        if (id != null) 'id': id,
+        'description': description,
+        'price': price,
+        'quantity': quantity,
+        'is_group': isGroup ? 1 : 0,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  factory ServiceTemplate.fromMap(Map<String, dynamic> map) => ServiceTemplate(
+        id: map['id'] as int?,
+        description: (map['description'] as String?) ?? '',
+        price: (map['price'] as num?)?.toDouble() ?? 0,
+        quantity: (map['quantity'] as num?)?.toInt() ?? 1,
+        isGroup: (map['is_group'] as int?) == 1,
+        createdAt: map['created_at'] != null
+            ? DateTime.parse(map['created_at'] as String)
+            : null,
+      );
+
+  ServiceTemplate copyWith({
+    int? id,
+    String? description,
+    double? price,
+    int? quantity,
+    bool? isGroup,
+  }) =>
+      ServiceTemplate(
+        id: id ?? this.id,
+        description: description ?? this.description,
+        price: price ?? this.price,
+        quantity: quantity ?? this.quantity,
+        isGroup: isGroup ?? this.isGroup,
+        createdAt: createdAt,
+      );
+}
+
 class VisitPhoto {
   final int? id;
   final int visitId;

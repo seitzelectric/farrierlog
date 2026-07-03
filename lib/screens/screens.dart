@@ -9,6 +9,9 @@ export 'new_visit_screen.dart';
 export 'horse_detail_screen.dart';
 export 'invoice_history_screen.dart';
 export 'animal_list_screen.dart';
+export 'photo_comparison_screen.dart';
+export 'today_route_screen.dart';
+export 'onboarding_screen.dart';
 import 'new_visit_screen.dart';
 import 'horse_detail_screen.dart';
 import 'package:flutter/material.dart';
@@ -188,6 +191,15 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  ElevatedButton.icon(
+                    onPressed: _addVisit,
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text('Schedule Visit'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -555,6 +567,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
   late final TextEditingController _quantityCtrl;
   int? _selectedHorseId;
   late bool _isGroup;
+  List<ServiceTemplate> _templates = [];
 
   bool get isEditing => widget.serviceLine != null;
 
@@ -577,6 +590,43 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
     _isGroup = widget.serviceLine?.isGroup ?? false;
     _priceCtrl.addListener(() => setState(() {}));
     _quantityCtrl.addListener(() => setState(() {}));
+    DatabaseService.getServiceTemplates().then((t) {
+      if (mounted) setState(() => _templates = t);
+    });
+  }
+
+  void _applyTemplate(ServiceTemplate t) {
+    setState(() {
+      _descCtrl.text = t.description;
+      _priceCtrl.text = t.price.toStringAsFixed(2);
+      _quantityCtrl.text = t.quantity.toString();
+      if (t.isGroup) _isGroup = true;
+    });
+  }
+
+  Future<void> _saveAsTemplate() async {
+    final description = _descCtrl.text.trim();
+    final price = double.tryParse(_priceCtrl.text.trim()) ?? 0;
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a description first')),
+      );
+      return;
+    }
+    final template = ServiceTemplate(
+      description: description,
+      price: price,
+      quantity: int.tryParse(_quantityCtrl.text.trim()) ?? 1,
+      isGroup: _isGroup,
+    );
+    await DatabaseService.insertServiceTemplate(template);
+    final templates = await DatabaseService.getServiceTemplates();
+    if (mounted) {
+      setState(() => _templates = templates);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"$description" saved as template')),
+      );
+    }
   }
 
   @override
@@ -605,6 +655,25 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_templates.isNotEmpty) ...[
+                Text('Saved Templates',
+                    style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: _templates
+                      .map((t) => ActionChip(
+                            label: Text(
+                              '${t.description} ${AppUtils.formatCurrency(t.price)}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () => _applyTemplate(t),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
               SegmentedButton<bool>(
                 segments: const [
                   ButtonSegment(value: false, label: Text('Single Animal')),
@@ -684,6 +753,15 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                  label: const Text('Save as template'),
+                  onPressed: _saveAsTemplate,
+                ),
+              ),
             ],
           ),
         ),

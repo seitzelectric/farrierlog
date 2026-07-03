@@ -877,8 +877,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _sendReminder() async {
-    final phone = _client?.phone.trim() ?? '';
-    if (phone.isEmpty) {
+    final client = _client;
+    if (client == null || client.phone.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('No phone number is saved for this client.')),
@@ -886,14 +886,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       return;
     }
 
-    final message = 'Hi, this is a reminder for your farrier appointment on '
-        '${AppUtils.formatDate(_visit.dateTime)} at '
-        '${AppUtils.formatTime(_visit.dateTime)}.';
-    final uri = Uri(
-      scheme: 'sms',
-      path: phone,
-      queryParameters: {'body': message},
-    );
+    final template = await DatabaseService.getReminderTemplate();
+    final message = template
+        .replaceAll('{name}', client.firstName)
+        .replaceAll('{date}', AppUtils.formatDate(_visit.dateTime))
+        .replaceAll('{time}', AppUtils.formatTime(_visit.dateTime));
+
+    final phone = client.phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('sms:$phone?body=${Uri.encodeComponent(message)}');
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

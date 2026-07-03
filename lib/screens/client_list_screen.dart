@@ -5,14 +5,16 @@ import '../widgets/widgets.dart';
 import 'screens.dart';
 
 class ClientListScreen extends StatefulWidget {
-  const ClientListScreen({super.key});
+  final bool autoOpenAddDialog;
+
+  const ClientListScreen({super.key, this.autoOpenAddDialog = false});
 
   @override
   State<ClientListScreen> createState() => _ClientListScreenState();
 }
 
 class _ClientListScreenState extends State<ClientListScreen> {
-  List<Client> _clients = [];
+  List<Map<String, dynamic>> _clients = [];
   bool _loading = true;
   String _searchQuery = '';
 
@@ -20,10 +22,15 @@ class _ClientListScreenState extends State<ClientListScreen> {
   void initState() {
     super.initState();
     _loadClients();
+    if (widget.autoOpenAddDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _addClientDialog();
+      });
+    }
   }
 
   Future<void> _loadClients() async {
-    final clients = await DatabaseService.getClients(
+    final clients = await DatabaseService.getClientsWithLastVisit(
       searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
     );
 
@@ -104,7 +111,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
                     itemCount: _clients.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
-                      final client = _clients[i];
+                      final row = _clients[i];
+                      final client = Client.fromMap(row);
+                      final lastVisitDate = row['last_visit_date'] as String?;
+                      final upcomingCount =
+                          (row['upcoming_count'] as int?) ?? 0;
 
                       return Dismissible(
                         key: ValueKey('client-${client.id}'),
@@ -119,13 +130,25 @@ class _ClientListScreenState extends State<ClientListScreen> {
                         child: ListTile(
                           leading: ClientAvatar(client: client),
                           title: Text(client.fullName),
-                          subtitle: Text(
-                            client.phone.isNotEmpty
-                                ? client.phone
-                                : client.email.isNotEmpty
-                                    ? client.email
-                                    : 'No contact info',
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                client.phone.isNotEmpty
+                                    ? client.phone
+                                    : client.email.isNotEmpty
+                                        ? client.email
+                                        : 'No contact info',
+                              ),
+                              const SizedBox(height: 2),
+                              LastVisitBadge(
+                                lastVisitDateStr: lastVisitDate,
+                                upcomingCount: upcomingCount,
+                              ),
+                            ],
                           ),
+                          isThreeLine: true,
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () async {
                             await Navigator.push(
