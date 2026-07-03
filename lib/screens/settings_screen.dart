@@ -8,6 +8,7 @@ import '../services/export_service.dart';
 import '../services/invoice_service.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
+import 'help_screen.dart';
 import 'onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -302,6 +303,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.menu_book_outlined),
+              title: const Text('Help & Guide'),
+              subtitle: const Text('How to use FarrierLog'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HelpScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text('Color', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           Row(
