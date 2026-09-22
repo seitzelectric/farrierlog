@@ -41,6 +41,7 @@ class AppUtils {
   static String _currencySymbol = '\$';
   static String _distanceUnit = 'mi';
   static String _terrainThemeId = 'terracotta_sage';
+  static Locale? _locale;
   static VoidCallback? _onThemeChanged;
 
   static void initCurrencySymbol(String symbol) =>
@@ -59,6 +60,18 @@ class AppUtils {
       _onThemeChanged = cb;
   static void applyTerrainTheme(String id) {
     initTerrainTheme(id);
+    _onThemeChanged?.call();
+  }
+
+  /// A saved language code ('en', 'es', 'fr') or null to follow the device
+  /// locale (only used if the device locale isn't one FarrierLog supports).
+  static Locale? get locale => _locale;
+  static void initLocale(String code) {
+    _locale = code.isEmpty ? null : Locale(code);
+  }
+
+  static void applyLocale(String code) {
+    initLocale(code);
     _onThemeChanged?.call();
   }
 
@@ -135,6 +148,12 @@ class AppUtils {
         '&waypoints=$waypoints'
         '&travelmode=driving';
   }
+
+  /// Converts logical pixels to physical pixels for `cacheWidth`/`cacheHeight`,
+  /// so `Image.file` downsamples while decoding instead of loading a
+  /// full-resolution camera photo into memory.
+  static int cachePixels(BuildContext context, double logicalPixels) =>
+      (logicalPixels * MediaQuery.of(context).devicePixelRatio).round();
 
   static String getInitials(String name) {
     final parts = name.trim().split(' ');

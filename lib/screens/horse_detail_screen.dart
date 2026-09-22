@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../services/invoice_service.dart';
@@ -74,23 +75,31 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
       client: _animal.client,
       photos: _photos,
     );
+    if (!mounted) return;
     await InvoiceService.shareInvoice(
       file,
-      subject: '${_animal.horse.name} — Progress Report',
+      subject: AppLocalizations.of(context)!.progressReportSubject(_animal.horse.name),
     );
   }
 
   void _showPhotoFullScreen(VisitPhoto photo) {
+    final l10n = AppLocalizations.of(context)!;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(
-            title: Text(photo.caption.isNotEmpty ? photo.caption : 'Photo'),
+            title: Text(photo.caption.isNotEmpty ? photo.caption : l10n.photoDefaultTitle),
           ),
           body: Center(
             child: InteractiveViewer(
-              child: Image.file(File(photo.path)),
+              child: Image.file(
+                File(photo.path),
+                cacheWidth: AppUtils.cachePixels(
+                  context,
+                  MediaQuery.of(context).size.width,
+                ),
+              ),
             ),
           ),
         ),
@@ -106,7 +115,7 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
     return grouped;
   }
 
-  Widget _buildAnimalSummary() {
+  Widget _buildAnimalSummary(AppLocalizations l10n) {
     final horse = _animal.horse;
     final details = [
       if (horse.breed.isNotEmpty) horse.breed,
@@ -150,7 +159,7 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
               contentPadding: EdgeInsets.zero,
               leading: ClientAvatar(client: _animal.client),
               title: Text(_animal.client.fullName),
-              subtitle: const Text('Owner'),
+              subtitle: Text(l10n.ownerLabel),
               trailing: const Icon(Icons.chevron_right),
               onTap: _openClient,
             ),
@@ -160,11 +169,11 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
     );
   }
 
-  Widget _buildVisitHistory() {
+  Widget _buildVisitHistory(AppLocalizations l10n) {
     if (_visits.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No visits recorded for this animal yet.'),
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(l10n.noVisitsRecordedForAnimal),
       );
     }
 
@@ -178,12 +187,12 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
     );
   }
 
-  Widget _buildPhotoHistory() {
+  Widget _buildPhotoHistory(AppLocalizations l10n) {
     final grouped = _photosByVisit;
     if (grouped.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.photo_library_outlined,
-        title: 'No photos tagged to this animal yet.',
+        title: l10n.noPhotosForAnimal,
       );
     }
 
@@ -208,11 +217,10 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
           final days =
               visit.dateTime.difference(previousVisit.dateTime).inDays.abs();
           if (days < 7) {
-            elapsedLabel = '$days day${days == 1 ? '' : 's'} since last visit';
+            elapsedLabel = l10n.daysSinceLastVisit(days);
           } else {
             final weeks = (days / 7).round();
-            elapsedLabel =
-                '$weeks week${weeks == 1 ? '' : 's'} since last shoeing';
+            elapsedLabel = l10n.weeksSinceLastShoeing(weeks);
           }
         }
 
@@ -266,12 +274,12 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.compare, size: 18),
-                        label: const Text('Compare'),
+                        label: Text(l10n.compareButton),
                       ),
                     TextButton.icon(
                       onPressed: () => _openVisit(visit),
                       icon: const Icon(Icons.open_in_new, size: 18),
-                      label: const Text('Open visit'),
+                      label: Text(l10n.openVisitButton),
                     ),
                   ],
                 ),
@@ -304,14 +312,15 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Animal'),
+        title: Text(l10n.animalTitle),
         actions: [
           if (_photos.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf),
-              tooltip: 'Progress Report',
+              tooltip: l10n.progressReportTooltip,
               onPressed: _shareProgressReport,
             ),
         ],
@@ -323,13 +332,13 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildAnimalSummary(),
+                  _buildAnimalSummary(l10n),
                   const SizedBox(height: 16),
-                  SectionHeader(title: 'Visit History (${_visits.length})'),
-                  _buildVisitHistory(),
+                  SectionHeader(title: l10n.visitHistoryTitle(_visits.length)),
+                  _buildVisitHistory(l10n),
                   const SizedBox(height: 16),
                   SectionHeader(
-                    title: 'Photo History',
+                    title: l10n.photoHistoryTitle,
                     onAdd: _photos.length >= 2
                         ? () => Navigator.push(
                               context,
@@ -339,9 +348,9 @@ class _HorseDetailScreenState extends State<HorseDetailScreen> {
                               ),
                             )
                         : null,
-                    addLabel: 'Compare',
+                    addLabel: l10n.compareButton,
                   ),
-                  _buildPhotoHistory(),
+                  _buildPhotoHistory(l10n),
                 ],
               ),
             ),

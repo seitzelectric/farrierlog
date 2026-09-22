@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
@@ -40,8 +41,7 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
         .toList();
     if (addresses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No addresses on file for today\'s visits')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.noAddressesSnackbar)),
       );
       return;
     }
@@ -57,12 +57,12 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
   }
 
   Future<void> _remindTomorrow() async {
+    final l10n = AppLocalizations.of(context)!;
     final visits = await DatabaseService.getTomorrowVisitsForReminders();
     if (visits.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No visits with phone numbers tomorrow')),
+        SnackBar(content: Text(l10n.noVisitsWithPhoneSnackbar)),
       );
       return;
     }
@@ -77,11 +77,10 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
         initialChildSize: 0.6,
         builder: (_, scroll) => Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text("Tomorrow's Reminders",
-                  style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l10n.tomorrowsRemindersTitle,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
             const Divider(height: 1),
             Expanded(
@@ -99,7 +98,7 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
                     subtitle: Text(AppUtils.formatTime(visit.dateTime)),
                     trailing: TextButton.icon(
                       icon: const Icon(Icons.sms),
-                      label: const Text('Send'),
+                      label: Text(l10n.sendButton),
                       onPressed: () async {
                         final message = template
                             .replaceAll('{name}', firstName)
@@ -128,17 +127,19 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final addressCount = _stops
         .where((s) => ((s['address'] as String?) ?? '').isNotEmpty)
         .length;
+    final missingCount = _stops.length - addressCount;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Today's Route"),
+        title: Text(l10n.todaysRouteTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_active),
-            tooltip: "Remind Tomorrow's Clients",
+            tooltip: l10n.remindTomorrowTooltip,
             onPressed: _remindTomorrow,
           ),
         ],
@@ -146,10 +147,10 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _stops.isEmpty
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.route,
-                  title: 'No visits scheduled today',
-                  subtitle: 'Enjoy the day off, or schedule a visit.',
+                  title: l10n.noVisitsScheduledToday,
+                  subtitle: l10n.enjoyDayOffSubtitle,
                 )
               : Column(
                   children: [
@@ -158,8 +159,8 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
                       color: Theme.of(context).colorScheme.primaryContainer,
                       padding: const EdgeInsets.all(12),
                       child: Text(
-                        '${_stops.length} visit${_stops.length == 1 ? '' : 's'} today'
-                        '${addressCount < _stops.length ? ' · ${_stops.length - addressCount} missing address' : ''}',
+                        '${l10n.visitsTodayCount(_stops.length)}'
+                        '${missingCount > 0 ? ' · ${l10n.missingAddressCount(missingCount)}' : ''}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Theme.of(context)
@@ -196,7 +197,7 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
                                             .textTheme
                                             .bodySmall)
                                   else
-                                    Text('No address on file',
+                                    Text(l10n.noAddressOnFile,
                                         style: TextStyle(
                                           color: Theme.of(context)
                                               .colorScheme
@@ -209,7 +210,7 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
                               trailing: address.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.navigation),
-                                      tooltip: 'Navigate',
+                                      tooltip: l10n.navigateTooltip,
                                       onPressed: () =>
                                           _navigateToStop(address),
                                     )
@@ -235,7 +236,7 @@ class _TodayRouteScreenState extends State<TodayRouteScreen> {
           ? FloatingActionButton.extended(
               onPressed: _openFullRoute,
               icon: const Icon(Icons.map),
-              label: const Text('Open Full Route'),
+              label: Text(l10n.openFullRouteButton),
             )
           : null,
     );

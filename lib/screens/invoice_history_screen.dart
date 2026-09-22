@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:printing/printing.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../services/invoice_service.dart';
@@ -109,17 +110,19 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/invoice_history.csv');
       await file.writeAsString(buffer.toString());
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          subject: 'Invoice History Export',
-          text: 'Invoice history CSV export',
+          subject: l10n.exportCsvShareSubject,
+          text: l10n.exportCsvShareText,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.exportFailedSnackbar('$e'))),
       );
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -127,11 +130,12 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
   }
 
   Future<void> _viewInvoice(Map<String, dynamic> row) async {
+    final l10n = AppLocalizations.of(context)!;
     final filePath = row['file_path'] as String? ?? '';
     final invoiceNumber = row['invoice_number'] as String? ?? 'Invoice';
     if (filePath.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No PDF file found for this invoice')),
+        SnackBar(content: Text(l10n.noPdfFoundSnackbar)),
       );
       return;
     }
@@ -139,7 +143,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
     if (!await file.exists()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF file not found: $filePath')),
+        SnackBar(content: Text(l10n.pdfNotFoundSnackbar(filePath))),
       );
       return;
     }
@@ -161,6 +165,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
   }
 
   Future<void> _shareInvoice(Map<String, dynamic> row) async {
+    final l10n = AppLocalizations.of(context)!;
     final filePath = row['file_path'] as String? ?? '';
     final fileName = row['file_name'] as String? ?? 'invoice.pdf';
     final invoiceNumber = row['invoice_number'] as String? ?? '';
@@ -176,7 +181,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
     if (!hasInvoicePhotos || !mounted) {
       await InvoiceService.shareInvoice(
         file,
-        subject: 'Invoice $invoiceNumber',
+        subject: l10n.invoiceNumberSubject(invoiceNumber),
         fileName: fileName,
       );
       return;
@@ -190,9 +195,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.receipt_long),
-              title: const Text('Share Invoice Only (no photos)'),
-              subtitle: const Text(
-                  'Clean invoice — ideal for clients and accounting'),
+              title: Text(l10n.shareInvoiceOnlyTitle),
+              subtitle: Text(l10n.shareInvoiceOnlySubtitle),
               onTap: () async {
                 Navigator.pop(ctx);
                 try {
@@ -217,26 +221,26 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                   );
                   await InvoiceService.shareInvoice(
                     invoiceOnlyFile,
-                    subject: 'Invoice $invoiceNumber',
+                    subject: l10n.invoiceNumberSubject(invoiceNumber),
                     fileName: fileName,
                   );
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error sharing invoice: $e')),
+                    SnackBar(content: Text(l10n.errorSharingInvoiceSnackbar('$e'))),
                   );
                 }
               },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Share Invoice + Photos'),
-              subtitle: const Text('Full document with photo documentation'),
+              title: Text(l10n.shareInvoicePhotosTitle),
+              subtitle: Text(l10n.shareInvoicePhotosSubtitle),
               onTap: () {
                 Navigator.pop(ctx);
                 InvoiceService.shareInvoice(
                   file,
-                  subject: 'Invoice $invoiceNumber',
+                  subject: l10n.invoiceNumberSubject(invoiceNumber),
                   fileName: fileName,
                 );
               },
@@ -249,14 +253,15 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Invoice History'),
+        title: Text(l10n.invoiceHistoryTitle),
         actions: [
           if (_hasFilters)
             IconButton(
               icon: const Icon(Icons.filter_alt_off),
-              tooltip: 'Clear filters',
+              tooltip: l10n.clearFiltersTooltip,
               onPressed: _clearFilters,
             ),
           IconButton(
@@ -267,7 +272,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.ios_share),
-            tooltip: 'Export CSV',
+            tooltip: l10n.exportCsvTooltip,
             onPressed: _exporting ? null : _exportCsv,
           ),
         ],
@@ -289,8 +294,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
                           _fromDate != null
-                              ? 'From: ${AppUtils.formatDate(_fromDate!)}'
-                              : 'From date',
+                              ? l10n.fromDateLabel(AppUtils.formatDate(_fromDate!))
+                              : l10n.fromDatePlaceholder,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -302,8 +307,8 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
                           _toDate != null
-                              ? 'To: ${AppUtils.formatDate(_toDate!)}'
-                              : 'To date',
+                              ? l10n.toDateLabel(AppUtils.formatDate(_toDate!))
+                              : l10n.toDatePlaceholder,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -313,16 +318,16 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int?>(
                   initialValue: _selectedClientId,
-                  decoration: const InputDecoration(
-                    labelText: 'Client',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.clientDropdownLabel,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                     contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                   items: [
-                    const DropdownMenuItem<int?>(
-                        value: null, child: Text('All clients')),
+                    DropdownMenuItem<int?>(
+                        value: null, child: Text(l10n.allClientsOption)),
                     ..._clients.map((c) =>
                         DropdownMenuItem(value: c.id, child: Text(c.fullName))),
                   ],
@@ -340,13 +345,13 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
             child: Row(
               children: [
                 Text(
-                  '${_results.length} invoice${_results.length == 1 ? '' : 's'}',
+                  l10n.invoiceCount(_results.length),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const Spacer(),
                 if (_results.isNotEmpty)
                   Text(
-                    'Total: ${AppUtils.formatCurrency(_results.fold(0.0, (sum, r) => sum + ((r['total'] as num?)?.toDouble() ?? 0.0)))}',
+                    l10n.totalLabel(AppUtils.formatCurrency(_results.fold(0.0, (sum, r) => sum + ((r['total'] as num?)?.toDouble() ?? 0.0)))),
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
@@ -369,12 +374,12 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                 size: 64,
                                 color: Theme.of(context).colorScheme.outline),
                             const SizedBox(height: 16),
-                            const Text('No invoices found'),
+                            Text(l10n.noInvoicesFound),
                             if (_hasFilters) ...[
                               const SizedBox(height: 8),
                               TextButton(
                                 onPressed: _clearFilters,
-                                child: const Text('Clear filters'),
+                                child: Text(l10n.clearFiltersTooltip),
                               ),
                             ],
                           ],
@@ -446,7 +451,7 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                             .titleSmall,
                                       ),
                                       Text(
-                                        isPaid ? 'Paid' : 'Unpaid',
+                                        isPaid ? l10n.paidLabel : l10n.unpaidLabel,
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: isPaid
@@ -463,11 +468,11 @@ class _InvoiceHistoryScreenState extends State<InvoiceHistoryScreen> {
                                       if (value == 'view') _viewInvoice(row);
                                       if (value == 'share') _shareInvoice(row);
                                     },
-                                    itemBuilder: (_) => const [
+                                    itemBuilder: (_) => [
                                       PopupMenuItem(
-                                          value: 'view', child: Text('View')),
+                                          value: 'view', child: Text(l10n.view)),
                                       PopupMenuItem(
-                                          value: 'share', child: Text('Share')),
+                                          value: 'share', child: Text(l10n.share)),
                                     ],
                                   ),
                                 ],

@@ -1,6 +1,7 @@
 import '../widgets/widgets.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
@@ -59,6 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_loading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -66,7 +68,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(title: Text(l10n.dashboardTitle)),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: ListView(
@@ -80,14 +82,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
                 ),
                 title: Text(
-                  "Today's Route",
+                  l10n.todaysRouteTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
                 subtitle: Text(
-                  'See all of today\'s stops in order',
+                  l10n.todaysRouteSubtitle,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
@@ -115,28 +117,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
               childAspectRatio: 2.2,
               children: [
                 _StatCard(
-                  title: 'Total Clients',
+                  title: l10n.statTotalClients,
                   value: '${_stats['totalClients']}',
                   icon: Icons.people,
                   color: Colors.blue,
                   onTap: () => _openList(DashboardListType.clients),
                 ),
                 _StatCard(
-                  title: 'Total Animals',
+                  title: l10n.statTotalAnimals,
                   value: '${_stats['totalHorses']}',
                   icon: Icons.pets,
                   color: Colors.brown,
                   onTap: () => _openList(DashboardListType.animals),
                 ),
                 _StatCard(
-                  title: 'Upcoming',
+                  title: l10n.statUpcoming,
                   value: '${_stats['upcomingVisits']}',
                   icon: Icons.event,
                   color: Colors.orange,
                   onTap: () => _openList(DashboardListType.upcomingVisits),
                 ),
                 _StatCard(
-                  title: 'Past Due',
+                  title: l10n.statPastDue,
                   value: '${_stats['pastDueVisits']}',
                   icon: Icons.warning_amber,
                   color: (_stats['pastDueVisits'] as int) > 0
@@ -151,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Expanded(
                   child: _StatCard(
-                    title: 'Total Revenue',
+                    title: l10n.statTotalRevenue,
                     value: AppUtils.formatCurrency(
                       (_stats['totalRevenue'] as num).toDouble(),
                     ),
@@ -163,7 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatCard(
-                    title: 'Outstanding',
+                    title: l10n.statOutstanding,
                     value: AppUtils.formatCurrency(
                       (_stats['outstandingRevenue'] as num).toDouble(),
                     ),
@@ -176,16 +178,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 12),
             _TwoColumnCard(
-              title: 'Miles Driven',
+              title: l10n.milesDrivenTitle,
               icon: Icons.route,
               iconColor: Colors.deepOrange,
               columns: [
                 _ColumnStat(
-                  label: 'This Month',
+                  label: l10n.thisMonth,
                   value: AppUtils.formatDistance(_mileage['month'] ?? 0),
                 ),
                 _ColumnStat(
-                  label: 'This Year',
+                  label: l10n.thisYear,
                   value: AppUtils.formatDistance(_mileage['year'] ?? 0),
                 ),
               ],
@@ -194,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _RevenueChartCard(data: _monthlyRevenue),
             const SizedBox(height: 24),
             SectionHeader(
-              title: 'Next 7 Days',
+              title: l10n.next7DaysTitle,
               onAdd: () async {
                 await Navigator.push(
                   context,
@@ -202,12 +204,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
                 _loadData();
               },
-              addLabel: 'New Visit',
+              addLabel: l10n.newVisitLabel,
             ),
             if (_upcomingVisits.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No upcoming visits this week'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.noUpcomingVisitsThisWeek),
               )
             else
               ..._upcomingVisits.map(
@@ -269,7 +271,7 @@ class _RevenueChartCard extends StatelessWidget {
                 Icon(Icons.bar_chart,
                     color: Theme.of(context).colorScheme.primary, size: 18),
                 const SizedBox(width: 8),
-                Text('Revenue Trend (12 mo)',
+                Text(AppLocalizations.of(context)!.revenueTrendTitle,
                     style: Theme.of(context)
                         .textTheme
                         .titleSmall

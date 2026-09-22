@@ -17,6 +17,7 @@ import 'new_visit_screen.dart';
 import 'horse_detail_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../utils/utils.dart';
 import '../services/database_service.dart';
@@ -73,11 +74,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<void> _deleteClient() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Client',
-      message:
-          'Are you sure you want to delete ${_client.fullName}? This will also delete all associated visits, animals, and photos.',
+      title: l10n.deleteClientTitle,
+      message: l10n.clientDetailDeleteMessage(_client.fullName),
     );
     if (confirmed == true) {
       await DatabaseService.deleteClient(_client.id!);
@@ -108,10 +109,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<void> _deleteHorse(Horse horse) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Animal',
-      message: 'Are you sure you want to delete ${horse.name}?',
+      title: l10n.deleteAnimalTitle,
+      message: l10n.deleteAnimalConfirmMessage(horse.name),
     );
     if (confirmed == true) {
       await DatabaseService.deleteHorse(horse.id!);
@@ -120,10 +122,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<bool> _confirmDeleteHorse(Horse horse) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Animal',
-      message: 'Are you sure you want to delete ${horse.name}?',
+      title: l10n.deleteAnimalTitle,
+      message: l10n.deleteAnimalConfirmMessage(horse.name),
     );
     if (confirmed == true) {
       await DatabaseService.deleteHorse(horse.id!);
@@ -133,11 +136,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Future<bool> _confirmDeleteVisit(Visit visit) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Visit',
-      message:
-          'Delete the visit on ${AppUtils.formatDateTime(visit.dateTime)}?',
+      title: l10n.deleteVisitTitle,
+      message: l10n.deleteVisitConfirmMessageWithDate(AppUtils.formatDateTime(visit.dateTime)),
     );
     if (confirmed == true) {
       await DatabaseService.deleteVisit(visit.id!);
@@ -165,6 +168,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         title: Text(_client.fullName),
@@ -175,11 +179,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               if (value == 'delete') _deleteClient();
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit Client')),
-              const PopupMenuItem(
+              PopupMenuItem(value: 'edit', child: Text(l10n.editClientTitle)),
+              PopupMenuItem(
                 value: 'delete',
                 child:
-                    Text('Delete Client', style: TextStyle(color: Colors.red)),
+                    Text(l10n.deleteClientTitle, style: const TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -195,7 +199,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   ElevatedButton.icon(
                     onPressed: _addVisit,
                     icon: const Icon(Icons.calendar_today),
-                    label: const Text('Schedule Visit'),
+                    label: Text(l10n.scheduleVisitButton),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 48),
                     ),
@@ -235,8 +239,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               dense: true,
                               leading: const Icon(Icons.phone),
                               title: Text(_client.phone),
-                              subtitle: const Text(
-                                  'Tap to call • Long-press to text'),
+                              subtitle: Text(l10n.tapToCallLongPressText),
                               onTap: () => _openUri('tel:${_client.phone}'),
                               onLongPress: () =>
                                   _openUri('sms:${_client.phone}'),
@@ -246,7 +249,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               dense: true,
                               leading: const Icon(Icons.email),
                               title: Text(_client.email),
-                              subtitle: const Text('Tap to email'),
+                              subtitle: Text(l10n.tapToEmail),
                               onTap: () => _openUri('mailto:${_client.email}'),
                             ),
                           if (_client.address.isNotEmpty)
@@ -254,7 +257,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                               dense: true,
                               leading: const Icon(Icons.map),
                               title: Text(_client.address),
-                              subtitle: const Text('Open in maps'),
+                              subtitle: Text(l10n.openInMaps),
                               onTap: () => AppUtils.openGoogleMapsSearch(
                                 _client.address,
                               ),
@@ -262,7 +265,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                           if (_client.notes.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text('Notes: ${_client.notes}'),
+                              child: Text(l10n.notesLabel(_client.notes)),
                             ),
                           if (_client.internalNotes.isNotEmpty)
                             Padding(
@@ -286,7 +289,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                             color: Colors.amber.shade700),
                                         const SizedBox(width: 6),
                                         Text(
-                                          'Private Staff Notes',
+                                          l10n.privateStaffNotesTitle,
                                           style: TextStyle(
                                             fontWeight: FontWeight.w600,
                                             color: Colors.amber.shade800,
@@ -306,14 +309,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   SectionHeader(
-                    title: 'Animals (${_horses.length})',
+                    title: l10n.animalsCountTitle(_horses.length),
                     onAdd: _addHorseDialog,
-                    addLabel: 'Add Animal',
+                    addLabel: l10n.addAnimalLabel,
                   ),
                   if (_horses.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No animals added yet'),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(l10n.noAnimalsAddedYet),
                     )
                   else
                     ..._horses.map((horse) => Dismissible(
@@ -344,12 +347,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                                   if (value == 'delete') _deleteHorse(horse);
                                 },
                                 itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                      value: 'edit', child: Text('Edit')),
-                                  const PopupMenuItem(
+                                  PopupMenuItem(
+                                      value: 'edit', child: Text(l10n.edit)),
+                                  PopupMenuItem(
                                     value: 'delete',
-                                    child: Text('Delete',
-                                        style: TextStyle(color: Colors.red)),
+                                    child: Text(l10n.delete,
+                                        style: const TextStyle(color: Colors.red)),
                                   ),
                                 ],
                               ),
@@ -372,14 +375,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         )),
                   const SizedBox(height: 16),
                   SectionHeader(
-                    title: 'Visits (${_visits.length})',
+                    title: l10n.visitsCountHeader(_visits.length),
                     onAdd: _addVisit,
-                    addLabel: 'New Visit',
+                    addLabel: l10n.newVisitLabel,
                   ),
                   if (_visits.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('No visits yet'),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(l10n.noVisitsYet),
                     )
                   else
                     ..._visits.map((visit) => Dismissible(
@@ -459,8 +462,9 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: Text(isEditing ? 'Edit Animal' : 'New Animal'),
+      title: Text(isEditing ? l10n.editAnimalTitle : l10n.newAnimalTitle),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -469,23 +473,23 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
             children: [
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: InputDecoration(labelText: l10n.nameLabel),
                 validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    (v?.trim().isEmpty ?? true) ? l10n.requiredField : null,
               ),
               TextFormField(
                 controller: _breedCtrl,
-                decoration: const InputDecoration(labelText: 'Species'),
+                decoration: InputDecoration(labelText: l10n.speciesLabel),
               ),
               TextFormField(
                 controller: _colorCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(labelText: l10n.descriptionLabel),
               ),
               TextFormField(
                 controller: _notesCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Animal Notes (private)',
-                  hintText: 'Health history, behaviour, handling notes...',
+                decoration: InputDecoration(
+                  labelText: l10n.animalNotesLabel,
+                  hintText: l10n.animalNotesHint,
                 ),
                 maxLines: 2,
               ),
@@ -498,13 +502,13 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
                 ),
                 child: TextFormField(
                   controller: _internalNotesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Internal Notes (staff only)',
-                    hintText: 'Private staff observations — never on invoice',
+                  decoration: InputDecoration(
+                    labelText: l10n.internalNotesLabel,
+                    hintText: l10n.internalNotesHintAnimal,
                     prefixIcon:
-                        Icon(Icons.lock_outline, color: Colors.amber),
+                        const Icon(Icons.lock_outline, color: Colors.amber),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.fromLTRB(0, 12, 12, 12),
+                    contentPadding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
                   ),
                   maxLines: 5,
                 ),
@@ -516,7 +520,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -535,7 +539,7 @@ class _HorseFormDialogState extends State<HorseFormDialog> {
               );
             }
           },
-          child: Text(isEditing ? 'Update' : 'Save'),
+          child: Text(isEditing ? l10n.update : l10n.save),
         ),
       ],
     );
@@ -606,11 +610,12 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
   }
 
   Future<void> _saveAsTemplate() async {
+    final l10n = AppLocalizations.of(context)!;
     final description = _descCtrl.text.trim();
     final price = double.tryParse(_priceCtrl.text.trim()) ?? 0;
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a description first')),
+        SnackBar(content: Text(l10n.enterDescriptionFirstSnackbar)),
       );
       return;
     }
@@ -625,7 +630,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
     if (mounted) {
       setState(() => _templates = templates);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"$description" saved as template')),
+        SnackBar(content: Text(l10n.templateSavedSnackbar(description))),
       );
     }
   }
@@ -647,8 +652,9 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: Text(isEditing ? 'Edit Service Line' : 'Add Service Line'),
+      title: Text(isEditing ? l10n.editServiceLineTitle : l10n.addServiceLineTitle),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -657,7 +663,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_templates.isNotEmpty) ...[
-                Text('Saved Templates',
+                Text(l10n.savedTemplatesLabel,
                     style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: 6),
                 Wrap(
@@ -676,9 +682,9 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
                 const SizedBox(height: 12),
               ],
               SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Single Animal')),
-                  ButtonSegment(value: true, label: Text('Group / Headcount')),
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.singleAnimalOption)),
+                  ButtonSegment(value: true, label: Text(l10n.groupHeadcountOption)),
                 ],
                 selected: {_isGroup},
                 onSelectionChanged: (selection) =>
@@ -689,10 +695,10 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
                 if (widget.horses.isNotEmpty)
                   DropdownButtonFormField<int?>(
                     initialValue: _selectedHorseId,
-                    decoration: const InputDecoration(labelText: 'Animal'),
+                    decoration: InputDecoration(labelText: l10n.animalDropdownLabel),
                     items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('General')),
+                      DropdownMenuItem(
+                          value: null, child: Text(l10n.generalLabel)),
                       ...widget.horses.map((h) =>
                           DropdownMenuItem(value: h.id, child: Text(h.name))),
                     ],
@@ -701,26 +707,26 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
               ] else ...[
                 TextFormField(
                   controller: _groupLabelCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Group description',
-                    hintText: 'e.g. Back pasture herd, Smith Ranch',
+                  decoration: InputDecoration(
+                    labelText: l10n.groupDescriptionLabel,
+                    hintText: l10n.groupDescriptionHint,
                   ),
                   validator: (v) {
                     if (!_isGroup) return null;
-                    return (v?.trim().isEmpty ?? true) ? 'Required' : null;
+                    return (v?.trim().isEmpty ?? true) ? l10n.requiredField : null;
                   },
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _quantityCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Number of animals'),
+                      InputDecoration(labelText: l10n.numberOfAnimalsLabel),
                   keyboardType: TextInputType.number,
                   validator: (v) {
                     if (!_isGroup) return null;
                     final parsed = int.tryParse(v?.trim() ?? '');
                     if (parsed == null || parsed < 1) {
-                      return 'Enter a whole number of 1 or more';
+                      return l10n.enterWholeNumber;
                     }
                     return null;
                   },
@@ -729,28 +735,28 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
               ],
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Service'),
+                decoration: InputDecoration(labelText: l10n.serviceLabel),
                 validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    (v?.trim().isEmpty ?? true) ? l10n.requiredField : null,
               ),
               TextFormField(
                 controller: _priceCtrl,
                 decoration: InputDecoration(
-                  labelText: _isGroup ? 'Price per animal' : 'Price',
+                  labelText: _isGroup ? l10n.pricePerAnimalLabel : l10n.priceLabel,
                   prefixText: '\$',
                 ),
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (double.tryParse(v) == null) return 'Invalid number';
+                  if (v == null || v.trim().isEmpty) return l10n.requiredField;
+                  if (double.tryParse(v) == null) return l10n.invalidNumber;
                   return null;
                 },
               ),
               if (_isGroup) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Total: ${AppUtils.formatCurrency(_previewTotal)}',
+                  l10n.totalLabel(AppUtils.formatCurrency(_previewTotal)),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
@@ -759,7 +765,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-                  label: const Text('Save as template'),
+                  label: Text(l10n.saveAsTemplateButton),
                   onPressed: _saveAsTemplate,
                 ),
               ),
@@ -770,7 +776,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -810,7 +816,7 @@ class _ServiceLineDialogState extends State<ServiceLineDialog> {
               }
             }
           },
-          child: Text(isEditing ? 'Update' : 'Save'),
+          child: Text(isEditing ? l10n.update : l10n.save),
         ),
       ],
     );
@@ -845,14 +851,15 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
 
   bool get isEditing => widget.existingCharge != null;
 
+  bool _descInitialized = false;
+
   @override
   void initState() {
     super.initState();
     final existing = widget.existingCharge;
     _type = existing?.type ?? ChargeType.mileage;
-    _descCtrl = TextEditingController(
-      text: existing?.description ?? _defaultDescription(_type),
-    );
+    _descCtrl = TextEditingController(text: existing?.description ?? '');
+    _descInitialized = existing != null;
     _quantityCtrl = TextEditingController(
       text: existing != null && existing.type.isMileageBased
           ? existing.quantity.toString()
@@ -873,6 +880,15 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_descInitialized) {
+      _descInitialized = true;
+      _descCtrl.text = _defaultDescription(_type, AppLocalizations.of(context)!);
+    }
+  }
+
+  @override
   void dispose() {
     _descCtrl.dispose();
     _quantityCtrl.dispose();
@@ -881,16 +897,16 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
     super.dispose();
   }
 
-  String _defaultDescription(ChargeType type) {
+  String _defaultDescription(ChargeType type, AppLocalizations l10n) {
     switch (type) {
       case ChargeType.mileage:
-        return 'Mileage';
+        return l10n.chargeTypeMileage;
       case ChargeType.transport:
-        return 'Transport';
+        return l10n.chargeTypeTransport;
       case ChargeType.tolls:
-        return 'Tolls';
+        return l10n.chargeTypeTolls;
       case ChargeType.reimbursement:
-        return 'Reimbursement';
+        return l10n.chargeTypeReimbursement;
       case ChargeType.other:
         return '';
     }
@@ -898,11 +914,12 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
 
   void _onTypeChanged(ChargeType? type) {
     if (type == null) return;
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
-      final isUnedited = _descCtrl.text.trim() == _defaultDescription(_type);
+      final isUnedited = _descCtrl.text.trim() == _defaultDescription(_type, l10n);
       _type = type;
       if (isUnedited) {
-        _descCtrl.text = _defaultDescription(type);
+        _descCtrl.text = _defaultDescription(type, l10n);
       }
     });
   }
@@ -918,8 +935,9 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: Text(isEditing ? 'Edit Charge' : 'Add Charge'),
+      title: Text(isEditing ? l10n.editChargeTitle : l10n.addChargeTitle),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -929,11 +947,11 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
             children: [
               DropdownButtonFormField<ChargeType>(
                 initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
+                decoration: InputDecoration(labelText: l10n.typeLabel),
                 items: ChargeType.values
                     .map((t) => DropdownMenuItem(
                           value: t,
-                          child: Text(t.label),
+                          child: Text(t.label(l10n)),
                         ))
                     .toList(),
                 onChanged: _onTypeChanged,
@@ -941,23 +959,23 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: InputDecoration(labelText: l10n.descriptionLabel),
                 validator: (v) =>
-                    (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    (v?.trim().isEmpty ?? true) ? l10n.requiredField : null,
               ),
               const SizedBox(height: 8),
               if (_type.isMileageBased) ...[
                 TextFormField(
                   controller: _quantityCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Distance (${AppUtils.distanceUnit})',
+                    labelText: l10n.distanceLabelWithUnit(AppUtils.distanceUnit),
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) {
                     final parsed = double.tryParse(v?.trim() ?? '');
                     if (parsed == null || parsed < 0) {
-                      return 'Enter a number 0 or more';
+                      return l10n.enterNumberZeroOrMore;
                     }
                     return null;
                   },
@@ -966,7 +984,7 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
                 TextFormField(
                   controller: _rateCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Rate per ${AppUtils.distanceUnit}',
+                    labelText: l10n.ratePerUnitLabel(AppUtils.distanceUnit),
                     prefixText: '\$',
                   ),
                   keyboardType:
@@ -974,7 +992,7 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
                   validator: (v) {
                     final parsed = double.tryParse(v?.trim() ?? '');
                     if (parsed == null || parsed < 0) {
-                      return 'Enter a number 0 or more';
+                      return l10n.enterNumberZeroOrMore;
                     }
                     return null;
                   },
@@ -982,8 +1000,8 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
               ] else
                 TextFormField(
                   controller: _amountCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
+                  decoration: InputDecoration(
+                    labelText: l10n.amountLabel,
                     prefixText: '\$',
                   ),
                   keyboardType:
@@ -991,14 +1009,14 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
                   validator: (v) {
                     final parsed = double.tryParse(v?.trim() ?? '');
                     if (parsed == null || parsed < 0) {
-                      return 'Enter a number 0 or more';
+                      return l10n.enterNumberZeroOrMore;
                     }
                     return null;
                   },
                 ),
               const SizedBox(height: 8),
               Text(
-                'Total: ${AppUtils.formatCurrency(_previewTotal)}',
+                l10n.totalLabel(AppUtils.formatCurrency(_previewTotal)),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
@@ -1008,7 +1026,7 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -1032,7 +1050,7 @@ class _VisitChargeDialogState extends State<VisitChargeDialog> {
               );
             }
           },
-          child: Text(isEditing ? 'Update' : 'Save'),
+          child: Text(isEditing ? l10n.update : l10n.save),
         ),
       ],
     );
@@ -1092,7 +1110,7 @@ class VisitListTile extends StatelessWidget {
         trailing: onConfirm != null
             ? TextButton(
                 onPressed: onConfirm,
-                child: const Text('Confirm'),
+                child: Text(AppLocalizations.of(context)!.confirm),
               )
             : const Icon(Icons.chevron_right),
         onTap: onTap,

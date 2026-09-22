@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../services/invoice_service.dart';
@@ -110,10 +111,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
         value &&
         _visit.recurrenceWeeks != null &&
         _visit.nextRecurringVisitId == null) {
+      final l10n = AppLocalizations.of(context)!;
       final scheduleNext = await ConfirmationDialog.show(
         context,
-        title: 'Recurring Visit',
-        message: 'Schedule next recurring visit?',
+        title: l10n.recurringVisitTitle,
+        message: l10n.scheduleNextRecurringVisit,
       );
       if (scheduleNext == true) {
         await DatabaseService.generateRecurringChain(_visit, weeksAhead: 10);
@@ -134,7 +136,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     await _loadData();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment confirmed')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.appointmentConfirmedSnackbar)),
     );
   }
 
@@ -168,10 +170,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _deleteServiceLine(ServiceLine line) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Service Line',
-      message: 'Remove "${line.description}"?',
+      title: l10n.deleteServiceLineTitle,
+      message: l10n.removeQuotedItem(line.description),
     );
     if (confirmed == true) {
       await DatabaseService.deleteServiceLine(line.id!);
@@ -213,10 +216,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _deleteCharge(VisitCharge charge) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Charge',
-      message: 'Remove "${charge.description}"?',
+      title: l10n.deleteChargeTitle,
+      message: l10n.removeQuotedItem(charge.description),
     );
     if (confirmed == true) {
       await DatabaseService.deleteVisitCharge(charge.id!);
@@ -225,6 +229,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _addPhoto() async {
+    final l10n = AppLocalizations.of(context)!;
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -233,12 +238,12 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a photo'),
+              title: Text(l10n.takeAPhoto),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from camera roll'),
+              title: Text(l10n.chooseFromCameraRoll),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
@@ -260,6 +265,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _addSinglePhoto(XFile image) async {
+    final l10n = AppLocalizations.of(context)!;
     final captionCtrl = TextEditingController();
     final includeOnInvoice = ValueNotifier<bool>(true);
     final selectedHorseIds = Set<int>.from(_horses.map((h) => h.id!));
@@ -269,17 +275,22 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Photo Details'),
+          title: Text(l10n.photoDetailsTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.file(File(image.path), height: 150, fit: BoxFit.cover),
+                Image.file(
+                  File(image.path),
+                  height: 150,
+                  fit: BoxFit.cover,
+                  cacheHeight: AppUtils.cachePixels(context, 150),
+                ),
                 const SizedBox(height: 12),
                 if (_horses.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  const Text('Tag to animal(s):',
-                      style: TextStyle(fontWeight: FontWeight.w500)),
+                  Text(l10n.tagToAnimalsLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
                   ..._horses.map((h) => StatefulBuilder(
                         builder: (ctx, setCheckState) => CheckboxListTile(
                           dense: true,
@@ -299,12 +310,12 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                 ],
                 TextField(
                   controller: captionCtrl,
-                  decoration: const InputDecoration(labelText: 'Caption'),
+                  decoration: InputDecoration(labelText: l10n.captionLabel),
                 ),
                 ValueListenableBuilder<bool>(
                   valueListenable: includeOnInvoice,
                   builder: (context, value, child) => SwitchListTile(
-                    title: const Text('Include on invoice'),
+                    title: Text(l10n.includeOnInvoiceSwitch),
                     value: value,
                     onChanged: (v) => includeOnInvoice.value = v,
                   ),
@@ -315,11 +326,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save'),
+              child: Text(l10n.save),
             ),
           ],
         ),
@@ -353,6 +364,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _addMultiplePhotos(List<XFile> images) async {
+    final l10n = AppLocalizations.of(context)!;
     final captionCtrl = TextEditingController();
     final includeOnInvoice = ValueNotifier<bool>(true);
     final selectedHorseIds = Set<int>.from(_horses.map((h) => h.id!));
@@ -362,16 +374,16 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Add ${images.length} Photos'),
+          title: Text(l10n.addPhotosCountTitle(images.length)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${images.length} photos selected from gallery'),
+                Text(l10n.photosSelectedFromGallery(images.length)),
                 const SizedBox(height: 12),
                 if (_horses.isNotEmpty) ...[
-                  const Text('Tag all to animal(s):',
-                      style: TextStyle(fontWeight: FontWeight.w500)),
+                  Text(l10n.tagAllToAnimalsLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w500)),
                   ..._horses.map((h) => StatefulBuilder(
                         builder: (ctx, setCheckState) => CheckboxListTile(
                           dense: true,
@@ -392,12 +404,12 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                 TextField(
                   controller: captionCtrl,
                   decoration:
-                      const InputDecoration(labelText: 'Caption (all photos)'),
+                      InputDecoration(labelText: l10n.captionAllPhotosLabel),
                 ),
                 ValueListenableBuilder<bool>(
                   valueListenable: includeOnInvoice,
                   builder: (context, value, child) => SwitchListTile(
-                    title: const Text('Include on invoice'),
+                    title: Text(l10n.includeOnInvoiceSwitch),
                     value: value,
                     onChanged: (v) => includeOnInvoice.value = v,
                   ),
@@ -408,11 +420,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save All'),
+              child: Text(l10n.saveAllButton),
             ),
           ],
         ),
@@ -477,10 +489,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _deletePhoto(VisitPhoto photo) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Photo',
-      message: 'Remove this photo?',
+      title: l10n.deletePhotoTitle,
+      message: l10n.removePhotoMessage,
     );
     if (confirmed == true) {
       await DatabaseService.deletePhoto(photo.id!);
@@ -489,6 +502,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _generateInvoice() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_invoices.isNotEmpty) {
       // Show View / Regenerate options
       if (!mounted) return;
@@ -500,7 +514,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             children: [
               ListTile(
                 leading: const Icon(Icons.visibility),
-                title: const Text('View / Share Invoice'),
+                title: Text(l10n.viewShareInvoiceTitle),
                 onTap: () {
                   Navigator.pop(ctx);
                   _viewInvoice(_invoices.first);
@@ -508,9 +522,9 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.refresh, color: Colors.orange),
-                title: const Text('Regenerate Invoice',
-                    style: TextStyle(color: Colors.orange)),
-                subtitle: const Text('Delete current and generate a new one'),
+                title: Text(l10n.regenerateInvoiceTitle,
+                    style: const TextStyle(color: Colors.orange)),
+                subtitle: Text(l10n.regenerateInvoiceSubtitle),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await _confirmRegenerateInvoice();
@@ -584,9 +598,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               if (hasInvoicePhotos) ...[
                 ListTile(
                   leading: const Icon(Icons.receipt_long),
-                  title: const Text('Share Invoice Only (no photos)'),
-                  subtitle: const Text(
-                      'Clean invoice — ideal for clients and accounting'),
+                  title: Text(l10n.shareInvoiceOnlyTitle),
+                  subtitle: Text(l10n.shareInvoiceOnlySubtitle),
                   onTap: () async {
                     Navigator.pop(bsCtx);
                     try {
@@ -602,27 +615,26 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                       );
                       await InvoiceService.shareInvoice(
                         invoiceOnlyFile,
-                        subject: 'Invoice for ${client.fullName}',
+                        subject: l10n.invoiceSubjectFor(client.fullName),
                         fileName: shareFileName,
                       );
                     } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error sharing invoice: $e')),
+                        SnackBar(content: Text(l10n.errorSharingInvoiceSnackbar('$e'))),
                       );
                     }
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
-                  title: const Text('Share Invoice + Photos'),
-                  subtitle:
-                      const Text('Full document with photo documentation'),
+                  title: Text(l10n.shareInvoicePhotosTitle),
+                  subtitle: Text(l10n.shareInvoicePhotosSubtitle),
                   onTap: () {
                     Navigator.pop(bsCtx);
                     InvoiceService.shareInvoice(
                       file,
-                      subject: 'Invoice for ${client.fullName}',
+                      subject: l10n.invoiceSubjectFor(client.fullName),
                       fileName: shareFileName,
                     );
                   },
@@ -630,21 +642,20 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ] else
                 ListTile(
                   leading: const Icon(Icons.share),
-                  title: const Text('Share Invoice (PDF)'),
-                  subtitle:
-                      const Text('Send via any app - Gmail, WhatsApp, etc.'),
+                  title: Text(l10n.shareInvoicePdfTitle),
+                  subtitle: Text(l10n.shareInvoicePdfSubtitle),
                   onTap: () {
                     Navigator.pop(bsCtx);
                     InvoiceService.shareInvoice(
                       file,
-                      subject: 'Invoice for ${client.fullName}',
+                      subject: l10n.invoiceSubjectFor(client.fullName),
                       fileName: shareFileName,
                     );
                   },
                 ),
               ListTile(
                 leading: const Icon(Icons.print),
-                title: const Text('Print Invoice'),
+                title: Text(l10n.printInvoiceTitle),
                 onTap: () {
                   Navigator.pop(bsCtx);
                   InvoiceService.printInvoice(file);
@@ -657,32 +668,30 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating invoice: $e')),
+        SnackBar(content: Text(l10n.errorGeneratingInvoiceSnackbar('$e'))),
       );
     }
   }
 
   Future<void> _confirmRegenerateInvoice() async {
     if (_invoices.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Regenerate Invoice?'),
-        content: const Text(
-          'This will delete the current invoice and generate a new one based on '
-          'current service lines and charges.',
-        ),
+        title: Text(l10n.regenerateInvoiceConfirmTitle),
+        content: Text(l10n.regenerateInvoiceConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Regenerate'),
+            child: Text(l10n.regenerateButton),
           ),
         ],
       ),
@@ -707,7 +716,9 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Invoice PDF not found: ${invoice.fileName.isEmpty ? invoice.invoiceNumber : invoice.fileName}',
+            AppLocalizations.of(context)!.invoicePdfNotFoundSnackbar(
+              invoice.fileName.isEmpty ? invoice.invoiceNumber : invoice.fileName,
+            ),
           ),
         ),
       );
@@ -736,6 +747,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _shareInvoiceRecord(InvoiceRecord invoice) async {
+    final l10n = AppLocalizations.of(context)!;
     final file = await _ensureInvoiceFile(invoice);
     if (file == null) return;
 
@@ -743,7 +755,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     if (!hasInvoicePhotos || !mounted) {
       await InvoiceService.shareInvoice(
         file,
-        subject: 'Invoice ${invoice.invoiceNumber}',
+        subject: l10n.invoiceNumberSubject(invoice.invoiceNumber),
         fileName: invoice.fileName,
       );
       return;
@@ -758,9 +770,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.receipt_long),
-              title: const Text('Share Invoice Only (no photos)'),
-              subtitle: const Text(
-                  'Clean invoice — ideal for clients and accounting'),
+              title: Text(l10n.shareInvoiceOnlyTitle),
+              subtitle: Text(l10n.shareInvoiceOnlySubtitle),
               onTap: () async {
                 Navigator.pop(ctx);
                 if (client == null) return;
@@ -777,26 +788,26 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   );
                   await InvoiceService.shareInvoice(
                     invoiceOnlyFile,
-                    subject: 'Invoice ${invoice.invoiceNumber}',
+                    subject: l10n.invoiceNumberSubject(invoice.invoiceNumber),
                     fileName: invoice.fileName,
                   );
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error sharing invoice: $e')),
+                    SnackBar(content: Text(l10n.errorSharingInvoiceSnackbar('$e'))),
                   );
                 }
               },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Share Invoice + Photos'),
-              subtitle: const Text('Full document with photo documentation'),
+              title: Text(l10n.shareInvoicePhotosTitle),
+              subtitle: Text(l10n.shareInvoicePhotosSubtitle),
               onTap: () {
                 Navigator.pop(ctx);
                 InvoiceService.shareInvoice(
                   file,
-                  subject: 'Invoice ${invoice.invoiceNumber}',
+                  subject: l10n.invoiceNumberSubject(invoice.invoiceNumber),
                   fileName: invoice.fileName,
                 );
               },
@@ -815,10 +826,11 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   Future<void> _deleteVisit() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Visit',
-      message: 'Are you sure you want to delete this visit?',
+      title: l10n.deleteVisitTitle,
+      message: l10n.deleteVisitConfirmMessage,
     );
     if (confirmed == true) {
       await DatabaseService.deleteVisit(_visit.id!);
@@ -847,16 +859,18 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     final launched = await AppUtils.openGoogleMapsSearch(address);
     if (!mounted || launched) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open Google Maps')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenMapsSnackbar)),
     );
   }
 
   Future<void> _addToPhoneCalendar() async {
+    final l10n = AppLocalizations.of(context)!;
     final client = _client;
     final event = Event(
-      title: 'Farrier - ${client?.fullName ?? _visit.clientName}',
-      description:
-          _visit.notes.trim().isEmpty ? 'Farrier visit' : _visit.notes.trim(),
+      title: l10n.calendarEventTitle(client?.fullName ?? _visit.clientName),
+      description: _visit.notes.trim().isEmpty
+          ? l10n.calendarEventDefaultDescription
+          : _visit.notes.trim(),
       location: client?.address ?? '',
       startDate: _visit.dateTime,
       endDate: _visit.dateTime.add(const Duration(hours: 1)),
@@ -866,22 +880,22 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
       final added = await Add2Calendar.addEvent2Cal(event);
       if (!mounted || added) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Calendar event could not be added.')),
+        SnackBar(content: Text(l10n.calendarEventNotAddedSnackbar)),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Calendar event could not be added: $error')),
+        SnackBar(content: Text(l10n.calendarEventErrorSnackbar('$error'))),
       );
     }
   }
 
   Future<void> _sendReminder() async {
+    final l10n = AppLocalizations.of(context)!;
     final client = _client;
     if (client == null || client.phone.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No phone number is saved for this client.')),
+        SnackBar(content: Text(l10n.noPhoneForClientSnackbar)),
       );
       return;
     }
@@ -902,20 +916,19 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the SMS app.')),
+      SnackBar(content: Text(l10n.couldNotOpenSmsSnackbar)),
     );
   }
 
   void _showInsertNotesSheet() {
+    final l10n = AppLocalizations.of(context)!;
     final hasClientNotes = _client?.notes.isNotEmpty == true;
     final horsesWithNotes =
         _horses.where((h) => h.notes.isNotEmpty).toList();
 
     if (!hasClientNotes && horsesWithNotes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'No saved notes found for this client or their animals.')),
+        SnackBar(content: Text(l10n.noSavedNotesSnackbar)),
       );
       return;
     }
@@ -930,10 +943,10 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
         expand: false,
         builder: (ctx, scrollCtrl) => Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Insert from Notes',
-                  style: TextStyle(
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l10n.insertFromNotesTitle,
+                  style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16)),
             ),
             const Divider(height: 1),
@@ -945,14 +958,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   if (hasClientNotes) ...[
                     const SizedBox(height: 12),
                     Text(
-                      '📋 Client — ${_client!.fullName}',
+                      l10n.clientNotesHeader(_client!.fullName),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Text(_client!.notes),
                     TextButton.icon(
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('+ Insert'),
+                      label: Text(l10n.insertButton),
                       onPressed: () {
                         final current = _invoiceNotesCtrl.text;
                         _invoiceNotesCtrl.text = current.isEmpty
@@ -967,14 +980,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   for (final horse in horsesWithNotes) ...[
                     const SizedBox(height: 12),
                     Text(
-                      '🐾 ${horse.name}',
+                      l10n.animalNotesHeader(horse.name),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Text(horse.notes),
                     TextButton.icon(
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('+ Insert'),
+                      label: Text(l10n.insertButton),
                       onPressed: () {
                         final current = _invoiceNotesCtrl.text;
                         _invoiceNotesCtrl.text = current.isEmpty
@@ -996,7 +1009,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
     );
   }
 
-  Widget _buildAddressCard() {
+  Widget _buildAddressCard(AppLocalizations l10n) {
     final address = _client?.address.trim() ?? '';
 
     if (address.isEmpty) {
@@ -1014,7 +1027,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'No address saved',
+                    l10n.noAddressSaved,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ],
@@ -1023,7 +1036,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               OutlinedButton.icon(
                 onPressed: _editClientAddress,
                 icon: const Icon(Icons.edit_location_alt),
-                label: const Text('Edit Client'),
+                label: Text(l10n.editClientTitle),
               ),
             ],
           ),
@@ -1047,7 +1060,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Appointment Address',
+                        l10n.appointmentAddressTitle,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
@@ -1061,7 +1074,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
             FilledButton.icon(
               onPressed: _openVisitAddress,
               icon: const Icon(Icons.directions),
-              label: const Text('Open in Google Maps'),
+              label: Text(l10n.openInGoogleMaps),
             ),
           ],
         ),
@@ -1070,16 +1083,23 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
   }
 
   void _showPhotoFullScreen(VisitPhoto photo) {
+    final l10n = AppLocalizations.of(context)!;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(
-            title: Text(photo.caption.isNotEmpty ? photo.caption : 'Photo'),
+            title: Text(photo.caption.isNotEmpty ? photo.caption : l10n.photoDefaultTitle),
           ),
           body: Center(
             child: InteractiveViewer(
-              child: Image.file(File(photo.path)),
+              child: Image.file(
+                File(photo.path),
+                cacheWidth: AppUtils.cachePixels(
+                  context,
+                  MediaQuery.of(context).size.width,
+                ),
+              ),
             ),
           ),
         ),
@@ -1089,9 +1109,10 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Visit')),
+        appBar: AppBar(title: Text(l10n.visitTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -1105,7 +1126,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
           if (hasLines)
             IconButton(
               icon: const Icon(Icons.receipt_long),
-              tooltip: _invoices.isEmpty ? 'Generate Invoice' : 'Regenerate Invoice',
+              tooltip: _invoices.isEmpty ? l10n.generateInvoiceTooltip : l10n.regenerateInvoiceTooltip,
               onPressed: _generateInvoice,
             ),
           PopupMenuButton<String>(
@@ -1121,13 +1142,13 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               if (value == 'delete') _deleteVisit();
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'edit',
-                child: Text('Edit Visit'),
+                child: Text(l10n.editVisitMenuItem),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
-                child: Text('Delete Visit', style: TextStyle(color: Colors.red)),
+                child: Text(l10n.deleteVisitMenuItem, style: const TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -1158,7 +1179,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                     if (_visit.notes.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Invoice Notes: ${_visit.notes}',
+                        l10n.invoiceNotesPrefix(_visit.notes),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontStyle: FontStyle.italic,
                             ),
@@ -1172,12 +1193,12 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                         OutlinedButton.icon(
                           onPressed: _addToPhoneCalendar,
                           icon: const Icon(Icons.event),
-                          label: const Text('Add to Phone Calendar'),
+                          label: Text(l10n.addToPhoneCalendarButton),
                         ),
                         OutlinedButton.icon(
                           onPressed: _sendReminder,
                           icon: const Icon(Icons.sms_outlined),
-                          label: const Text('Send Reminder'),
+                          label: Text(l10n.sendReminderButton),
                         ),
                       ],
                     ),
@@ -1186,18 +1207,18 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                       FilledButton.icon(
                         onPressed: _confirmProjectedVisit,
                         icon: const Icon(Icons.event_available),
-                        label: const Text('Confirm this appointment'),
+                        label: Text(l10n.confirmAppointmentButton),
                       ),
                     ],
                     const SizedBox(height: 12),
                     SwitchListTile(
-                      title: const Text('Visit completed'),
+                      title: Text(l10n.visitCompletedSwitch),
                       value: _visit.completed,
                       onChanged: _toggleCompleted,
                       contentPadding: EdgeInsets.zero,
                     ),
                     SwitchListTile(
-                      title: const Text('Payment received'),
+                      title: Text(l10n.paymentReceivedSwitch),
                       value: _visit.paid,
                       onChanged: _togglePaid,
                       contentPadding: EdgeInsets.zero,
@@ -1207,13 +1228,13 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildAddressCard(),
+            _buildAddressCard(l10n),
             const SizedBox(height: 16),
-            SectionHeader(title: 'Animals (${_horses.length})'),
+            SectionHeader(title: l10n.animalsCountTitle(_horses.length)),
             if (_horses.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No animals selected for this visit'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.noAnimalsForVisit),
               )
             else
               ..._horses.map((h) => ListTile(
@@ -1222,14 +1243,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   )),
             const SizedBox(height: 16),
             SectionHeader(
-              title: 'Billing',
+              title: l10n.billingTitle,
               onAdd: _addServiceLine,
-              addLabel: 'Add Service Line',
+              addLabel: l10n.addServiceLineLabel,
             ),
             if (_serviceLines.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No service lines yet'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.noServiceLinesYet),
               )
             else
               ..._serviceLines.map((line) => ServiceLineCard(
@@ -1239,14 +1260,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   )),
             const SizedBox(height: 16),
             SectionHeader(
-              title: 'Travel & Incidentals',
+              title: l10n.travelIncidentalsTitle,
               onAdd: _addCharge,
-              addLabel: 'Add Charge',
+              addLabel: l10n.addChargeLabel,
             ),
             if (_charges.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No travel or incidental charges yet'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.noChargesYet),
               )
             else
               ..._charges.map((charge) => Card(
@@ -1281,13 +1302,13 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                               if (value == 'edit') _editCharge(charge);
                               if (value == 'delete') _deleteCharge(charge);
                             },
-                            itemBuilder: (context) => const [
+                            itemBuilder: (context) => [
                               PopupMenuItem(
-                                  value: 'edit', child: Text('Edit')),
+                                  value: 'edit', child: Text(l10n.edit)),
                               PopupMenuItem(
                                 value: 'delete',
-                                child: Text('Delete',
-                                    style: TextStyle(color: Colors.red)),
+                                child: Text(l10n.delete,
+                                    style: const TextStyle(color: Colors.red)),
                               ),
                             ],
                           ),
@@ -1306,15 +1327,17 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
-                          'Services: ${AppUtils.formatCurrency(_serviceLinesTotal)} '
-                          '· Travel & Incidentals: ${AppUtils.formatCurrency(_chargesTotal)}',
+                          l10n.servicesAndTravelSummary(
+                            AppUtils.formatCurrency(_serviceLinesTotal),
+                            AppUtils.formatCurrency(_chargesTotal),
+                          ),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Total',
+                        Text(l10n.totalLabelPlain,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleLarge
@@ -1344,12 +1367,12 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               child: TextField(
                 controller: _invoiceNotesCtrl,
                 decoration: InputDecoration(
-                  labelText: 'Invoice Notes',
-                  hintText: 'Printed on invoice...',
+                  labelText: l10n.invoiceNotesLabel,
+                  hintText: l10n.invoiceNotesHint,
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.note_add),
-                    tooltip: 'Insert from saved notes',
+                    tooltip: l10n.insertFromSavedNotesTooltip,
                     onPressed: _showInsertNotesSheet,
                   ),
                 ),
@@ -1365,8 +1388,8 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                   onPressed: _generateInvoice,
                   icon: const Icon(Icons.receipt_long),
                   label: Text(_invoices.isEmpty
-                      ? 'Generate Invoice'
-                      : 'Regenerate Invoice'),
+                      ? l10n.generateInvoiceButton
+                      : l10n.regenerateInvoiceTitle),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
                   ),
@@ -1374,20 +1397,19 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ),
             const SizedBox(height: 16),
             SectionHeader(
-              title: 'Invoice History',
+              title: l10n.invoiceHistoryTitle,
               onAdd: hasLines && _invoices.isEmpty ? _generateInvoice : null,
-              addLabel: 'Create Invoice',
+              addLabel: l10n.createInvoiceButton,
             ),
             if (_invoices.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: !hasLines
-                    ? const Text(
-                        'Add service lines or charges before creating an invoice')
+                    ? Text(l10n.addServiceLinesBeforeInvoice)
                     : ElevatedButton.icon(
                         onPressed: _generateInvoice,
                         icon: const Icon(Icons.receipt_long),
-                        label: const Text('Create Invoice'),
+                        label: Text(l10n.createInvoiceButton),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 48),
                         ),
@@ -1418,7 +1440,7 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                     ),
                     title: Text(invoice.invoiceNumber),
                     subtitle: Text(
-                      '${AppUtils.formatDate(invoice.issuedAt)} · ${invoice.paidAt != null ? 'Paid in Full' : 'Unpaid'}',
+                      '${AppUtils.formatDate(invoice.issuedAt)} · ${invoice.paidAt != null ? l10n.paidInFull : l10n.unpaidLabel}',
                       style: TextStyle(
                         color: invoice.paidAt != null
                             ? Colors.green
@@ -1438,10 +1460,10 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
                             if (value == 'share') _shareInvoiceRecord(invoice);
                             if (value == 'print') _printInvoiceRecord(invoice);
                           },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(value: 'view', child: Text('View')),
-                            PopupMenuItem(value: 'share', child: Text('Share')),
-                            PopupMenuItem(value: 'print', child: Text('Print')),
+                          itemBuilder: (context) => [
+                            PopupMenuItem(value: 'view', child: Text(l10n.view)),
+                            PopupMenuItem(value: 'share', child: Text(l10n.share)),
+                            PopupMenuItem(value: 'print', child: Text(l10n.print)),
                           ],
                         ),
                       ],
@@ -1452,14 +1474,14 @@ class _VisitDetailScreenState extends State<VisitDetailScreen> {
               ),
             const SizedBox(height: 16),
             SectionHeader(
-              title: 'Photos (${_photos.length})',
+              title: l10n.photosCountTitle(_photos.length),
               onAdd: _addPhoto,
-              addLabel: 'Add Photo',
+              addLabel: l10n.addPhotoLabel,
             ),
             if (_photos.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No photos yet'),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l10n.noPhotosYet),
               )
             else
               PhotoGrid(

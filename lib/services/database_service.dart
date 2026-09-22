@@ -1026,6 +1026,14 @@ class DatabaseService {
   static Future<void> setTerrainThemeId(String id) async =>
       await setSetting(_terrainThemeKey, id);
 
+  static const String _languageCodeKey = 'language_code';
+  /// Returns the user's saved language code ('en', 'es', 'fr'), or '' if the
+  /// user hasn't chosen one yet (meaning: follow the device locale).
+  static Future<String> getLanguageCode() async =>
+      await getSetting(_languageCodeKey, defaultValue: '');
+  static Future<void> setLanguageCode(String code) async =>
+      await setSetting(_languageCodeKey, code);
+
   static const String _reminderTemplateKey = 'reminder_template';
 
   static Future<String> getReminderTemplate() async {

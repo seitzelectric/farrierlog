@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../services/database_service.dart';
 import '../services/invoice_service.dart';
 import 'screens.dart';
@@ -68,7 +69,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: () => _finish(addClient: false),
-                child: const Text('Skip'),
+                child: Text(AppLocalizations.of(context)!.skipButton),
               ),
             ),
             Expanded(
@@ -129,6 +130,7 @@ class _WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -138,7 +140,7 @@ class _WelcomePage extends StatelessWidget {
               size: 72, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            'Welcome to FarrierLog',
+            l10n.welcomeToFarrierLog,
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -147,9 +149,7 @@ class _WelcomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'FarrierLog helps you run your business from your phone — '
-            'clients, scheduling, invoicing, and photos. Fully offline. '
-            'No subscriptions.',
+            l10n.onboardingWelcomeBody,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
@@ -159,7 +159,7 @@ class _WelcomePage extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
-            child: const Text('Get Started'),
+            child: Text(l10n.getStartedButton),
           ),
         ],
       ),
@@ -184,6 +184,7 @@ class _BusinessInfoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -191,7 +192,7 @@ class _BusinessInfoPage extends StatelessWidget {
         children: [
           const SizedBox(height: 16),
           Text(
-            'Add your business details',
+            l10n.addBusinessDetailsTitle,
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
@@ -199,33 +200,32 @@ class _BusinessInfoPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'These appear on your invoices. You can always change them '
-            'later in Settings.',
+            l10n.addBusinessDetailsBody,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
           TextField(
             controller: nameCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Business Name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.businessNameLabel,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: phoneCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Phone',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.phoneLabel,
+              border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: emailCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Email (optional)',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.emailOptionalLabel,
+              border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.emailAddress,
           ),
@@ -235,12 +235,12 @@ class _BusinessInfoPage extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
-            child: const Text('Continue'),
+            child: Text(l10n.continueButton),
           ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: onSkip,
-            child: const Text('Skip for now'),
+            child: Text(l10n.skipForNow),
           ),
         ],
       ),
@@ -256,6 +256,7 @@ class _ReadyPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -265,7 +266,7 @@ class _ReadyPage extends StatelessWidget {
               size: 72, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 24),
           Text(
-            "You're all set!",
+            l10n.allSetTitle,
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -274,7 +275,7 @@ class _ReadyPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Add your first client to get started.',
+            l10n.addFirstClientBody,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
@@ -282,7 +283,7 @@ class _ReadyPage extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onAddClient,
             icon: const Icon(Icons.person_add),
-            label: const Text('Add First Client'),
+            label: Text(l10n.addFirstClientButton),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -290,7 +291,7 @@ class _ReadyPage extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton(
             onPressed: onLater,
-            child: const Text("I'll do it later"),
+            child: Text(l10n.illDoItLater),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
@@ -155,7 +156,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     final recurrenceWeeks = _resolvedRecurrenceWeeks();
     if (recurrenceWeeks != null && recurrenceWeeks <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Custom weeks must be greater than 0')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.customWeeksMustBeGreaterThanZero)),
       );
       return;
     }
@@ -216,15 +217,16 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text(_isEditing ? 'Edit Visit' : 'New Visit')),
+        appBar: AppBar(title: Text(_isEditing ? l10n.editVisitTitle : l10n.newVisitTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Visit' : 'New Visit')),
+      appBar: AppBar(title: Text(_isEditing ? l10n.editVisitTitle : l10n.newVisitTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -233,13 +235,13 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
               onTap: _pickClient,
               child: InputDecorator(
                 decoration: InputDecoration(
-                  labelText: 'Client',
+                  labelText: l10n.clientDropdownLabel,
                   errorText:
-                      _showClientError ? 'Please select a client' : null,
+                      _showClientError ? l10n.pleaseSelectClient : null,
                   suffixIcon: const Icon(Icons.search),
                 ),
                 child: Text(
-                  _selectedClient?.fullName ?? 'Search for a client...',
+                  _selectedClient?.fullName ?? l10n.searchForClientPlaceholder,
                   style: _selectedClient == null
                       ? Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Theme.of(context).hintColor,
@@ -257,26 +259,26 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.calendar_today),
-            title: const Text('Date'),
+            title: Text(l10n.dateLabel),
             subtitle: Text(AppUtils.formatDate(_selectedDateTime)),
             onTap: _pickDate,
           ),
           ListTile(
             leading: const Icon(Icons.access_time),
-            title: const Text('Time'),
+            title: Text(l10n.timeLabel),
             subtitle: Text(AppUtils.formatTime(_selectedDateTime)),
             onTap: _pickTime,
           ),
           DropdownButtonFormField<int?>(
             initialValue: _isCustomRecurrence ? -1 : _recurrenceWeeks,
-            decoration: const InputDecoration(labelText: 'Recurring'),
-            items: const [
-              DropdownMenuItem<int?>(value: null, child: Text('None')),
-              DropdownMenuItem<int?>(value: 4, child: Text('Every 4 weeks')),
-              DropdownMenuItem<int?>(value: 6, child: Text('Every 6 weeks')),
-              DropdownMenuItem<int?>(value: 8, child: Text('Every 8 weeks')),
-              DropdownMenuItem<int?>(value: 10, child: Text('Every 10 weeks')),
-              DropdownMenuItem<int?>(value: -1, child: Text('Custom weeks')),
+            decoration: InputDecoration(labelText: l10n.recurringLabel),
+            items: [
+              DropdownMenuItem<int?>(value: null, child: Text(l10n.noneLabel)),
+              DropdownMenuItem<int?>(value: 4, child: Text(l10n.recurrenceEvery4)),
+              DropdownMenuItem<int?>(value: 6, child: Text(l10n.recurrenceEvery6)),
+              DropdownMenuItem<int?>(value: 8, child: Text(l10n.recurrenceEvery8)),
+              DropdownMenuItem<int?>(value: 10, child: Text(l10n.recurrenceEvery10)),
+              DropdownMenuItem<int?>(value: -1, child: Text(l10n.recurrenceCustom)),
             ],
             onChanged: (value) {
               if (value == -1) {
@@ -295,9 +297,9 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
             const SizedBox(height: 8),
             TextFormField(
               controller: _customWeeksCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Custom weeks',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.customWeeksLabel,
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
               onChanged: (value) {
@@ -308,12 +310,12 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           ],
           const SizedBox(height: 8),
           if (_selectedClient != null) ...[
-            Text('Select Animals',
+            Text(l10n.selectAnimalsLabel,
                 style: Theme.of(context).textTheme.titleMedium),
             if (_horses.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: Text('No animals for this client'),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(l10n.noAnimalsForClient),
               )
             else
               ..._horses.map((h) => CheckboxListTile(
@@ -332,8 +334,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Text(
-                "Don't need to track individual animals for this stop? "
-                'Add a group service line from the visit screen after saving.',
+                l10n.groupServiceHint,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.outline,
                     ),
@@ -343,10 +344,10 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _notesCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Invoice Notes',
-              hintText: 'Printed on invoice — services, corrections, special notes...',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.invoiceNotesLabel,
+              hintText: l10n.invoiceNotesHintNewVisit,
+              border: const OutlineInputBorder(),
             ),
             maxLines: 3,
           ),
@@ -354,7 +355,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
           ElevatedButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: Text(_isEditing ? 'Update Visit' : 'Save Visit'),
+            label: Text(_isEditing ? l10n.updateVisitButton : l10n.saveVisitButton),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -405,6 +406,7 @@ class _ClientSearchDialogState extends State<_ClientSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Column(
@@ -414,10 +416,10 @@ class _ClientSearchDialogState extends State<_ClientSearchDialog> {
             child: TextField(
               controller: _searchCtrl,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Search clients...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: l10n.searchClientsHint,
+                prefixIcon: const Icon(Icons.search),
+                border: const OutlineInputBorder(),
                 isDense: true,
               ),
             ),
@@ -425,7 +427,7 @@ class _ClientSearchDialogState extends State<_ClientSearchDialog> {
           const Divider(height: 1),
           Expanded(
             child: _filtered.isEmpty
-                ? const Center(child: Text('No clients found'))
+                ? Center(child: Text(l10n.noClientsFound))
                 : ListView.builder(
                     itemCount: _filtered.length,
                     itemBuilder: (ctx, i) {
@@ -443,7 +445,7 @@ class _ClientSearchDialogState extends State<_ClientSearchDialog> {
             padding: const EdgeInsets.all(8),
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
           ),
         ],

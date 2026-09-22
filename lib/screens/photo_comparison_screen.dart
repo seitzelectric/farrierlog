@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../utils/utils.dart';
 
@@ -34,23 +35,24 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
   VisitPhotoWithVisit get _left => widget.photos[_leftIndex];
   VisitPhotoWithVisit get _right => widget.photos[_rightIndex];
 
-  String _elapsed() {
+  String _elapsed(AppLocalizations l10n) {
     final days =
         _right.visit.dateTime.difference(_left.visit.dateTime).inDays.abs();
-    if (days < 7) return '$days days';
+    if (days < 7) return l10n.elapsedDays(days);
     final weeks = (days / 7).round();
-    return '$weeks week${weeks == 1 ? '' : 's'}';
+    return l10n.elapsedWeeks(weeks);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Photo Comparison'),
+        title: Text(l10n.photoComparisonTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Swap photos',
+            tooltip: l10n.swapPhotosTooltip,
             onPressed: () => setState(() {
               final tmp = _leftIndex;
               _leftIndex = _rightIndex;
@@ -67,7 +69,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
               color: Theme.of(context).colorScheme.primaryContainer,
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Text(
-                '${_elapsed()} between these visits',
+                l10n.elapsedBetweenVisits(_elapsed(l10n)),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -81,7 +83,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
               children: [
                 _PhotoPane(
                   entry: _left,
-                  label: 'BEFORE',
+                  label: l10n.beforeLabel,
                   photoCount: widget.photos.length,
                   currentIndex: _leftIndex,
                   onChanged: (i) => setState(() => _leftIndex = i),
@@ -89,7 +91,7 @@ class _PhotoComparisonScreenState extends State<PhotoComparisonScreen> {
                 const VerticalDivider(width: 1),
                 _PhotoPane(
                   entry: _right,
-                  label: 'AFTER',
+                  label: l10n.afterLabel,
                   photoCount: widget.photos.length,
                   currentIndex: _rightIndex,
                   onChanged: (i) => setState(() => _rightIndex = i),

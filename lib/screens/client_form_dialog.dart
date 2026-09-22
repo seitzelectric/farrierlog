@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 
 class ClientFormDialog extends StatefulWidget {
@@ -71,10 +72,11 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final editing = widget.client != null;
 
     return AlertDialog(
-      title: Text(editing ? 'Edit Client' : 'Add Client'),
+      title: Text(editing ? l10n.editClientTitle : l10n.addClientTitle),
       content: SizedBox(
         width: 500,
         child: Form(
@@ -85,41 +87,43 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
               children: [
                 TextFormField(
                   controller: _firstNameCtrl,
-                  decoration: const InputDecoration(labelText: 'First Name'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  decoration: InputDecoration(labelText: l10n.firstNameLabel),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10n.requiredField
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _lastNameCtrl,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  decoration: InputDecoration(labelText: l10n.lastNameLabel),
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10n.requiredField
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _phoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Phone'),
+                  decoration: InputDecoration(labelText: l10n.phoneLabel),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _emailCtrl,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(labelText: l10n.emailLabel),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _addressCtrl,
-                  decoration: const InputDecoration(labelText: 'Address'),
+                  decoration: InputDecoration(labelText: l10n.addressLabel),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Client Notes (private — not on invoice)',
-                    hintText: 'Gate codes, payment preferences, safety notes...',
+                  decoration: InputDecoration(
+                    labelText: l10n.clientNotesLabel,
+                    hintText: l10n.clientNotesHint,
                   ),
                   maxLines: 3,
                 ),
@@ -132,14 +136,13 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
                   ),
                   child: TextFormField(
                     controller: _internalNotesCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Internal Notes (staff only)',
-                      hintText:
-                          'Observations, warnings — never shown to client or on invoice',
-                      prefixIcon: Icon(Icons.lock_outline,
+                    decoration: InputDecoration(
+                      labelText: l10n.internalNotesLabel,
+                      hintText: l10n.internalNotesHintClient,
+                      prefixIcon: const Icon(Icons.lock_outline,
                           color: Colors.amber),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.fromLTRB(0, 12, 12, 12),
+                      contentPadding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
                     ),
                     maxLines: 5,
                   ),
@@ -152,11 +155,11 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         ElevatedButton(
           onPressed: _save,
-          child: Text(editing ? 'Save' : 'Add'),
+          child: Text(editing ? l10n.save : l10n.add),
         ),
       ],
     );

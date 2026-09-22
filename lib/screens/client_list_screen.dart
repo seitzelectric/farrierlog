@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../widgets/widgets.dart';
@@ -55,11 +56,11 @@ class _ClientListScreenState extends State<ClientListScreen> {
   }
 
   Future<bool> _confirmDeleteClient(Client client) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await ConfirmationDialog.show(
       context,
-      title: 'Delete Client',
-      message:
-          'Delete ${client.fullName}? This will also delete all associated visits, animals, and photos.',
+      title: l10n.deleteClientTitle,
+      message: l10n.clientListDeleteMessage(client.fullName),
     );
     if (confirmed == true) {
       await DatabaseService.deleteClient(client.id!);
@@ -82,9 +83,10 @@ class _ClientListScreenState extends State<ClientListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clients'),
+        title: Text(l10n.navClients),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -97,12 +99,12 @@ class _ClientListScreenState extends State<ClientListScreen> {
           : _clients.isEmpty
               ? EmptyState(
                   icon: Icons.people_outline,
-                  title: 'No clients yet',
-                  subtitle: 'Add your first client to get started',
+                  title: l10n.noClientsYet,
+                  subtitle: l10n.addFirstClientSubtitle,
                   action: ElevatedButton.icon(
                     onPressed: _addClientDialog,
                     icon: const Icon(Icons.add),
-                    label: const Text('Add Client'),
+                    label: Text(l10n.addClientButton),
                   ),
                 )
               : RefreshIndicator(
@@ -139,7 +141,7 @@ class _ClientListScreenState extends State<ClientListScreen> {
                                     ? client.phone
                                     : client.email.isNotEmpty
                                         ? client.email
-                                        : 'No contact info',
+                                        : l10n.noContactInfo,
                               ),
                               const SizedBox(height: 2),
                               LastVisitBadge(

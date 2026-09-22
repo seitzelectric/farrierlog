@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../widgets/widgets.dart';
@@ -32,20 +33,20 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
   List<Visit> _visits = [];
   bool _loading = true;
 
-  String get _title {
+  String _title(AppLocalizations l10n) {
     switch (widget.type) {
       case DashboardListType.clients:
-        return 'Clients';
+        return l10n.dashListTitleClients;
       case DashboardListType.animals:
-        return 'Animals';
+        return l10n.dashListTitleAnimals;
       case DashboardListType.upcomingVisits:
-        return 'Upcoming Visits';
+        return l10n.dashListTitleUpcoming;
       case DashboardListType.pastDueVisits:
-        return 'Past Due Visits';
+        return l10n.dashListTitlePastDue;
       case DashboardListType.outstandingVisits:
-        return 'Outstanding Visits';
+        return l10n.dashListTitleOutstanding;
       case DashboardListType.paidVisits:
-        return 'Paid Visits';
+        return l10n.dashListTitlePaid;
     }
   }
 
@@ -66,37 +67,37 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
     }
   }
 
-  String get _emptyTitle {
+  String _emptyTitle(AppLocalizations l10n) {
     switch (widget.type) {
       case DashboardListType.clients:
-        return 'No clients yet';
+        return l10n.noClientsYet;
       case DashboardListType.animals:
-        return 'No animals yet';
+        return l10n.noAnimalsYet;
       case DashboardListType.upcomingVisits:
-        return 'No upcoming visits';
+        return l10n.dashEmptyUpcomingTitle;
       case DashboardListType.pastDueVisits:
-        return 'No past due visits';
+        return l10n.dashEmptyPastDueTitle;
       case DashboardListType.outstandingVisits:
-        return 'No outstanding visits';
+        return l10n.dashEmptyOutstandingTitle;
       case DashboardListType.paidVisits:
-        return 'No paid visits yet';
+        return l10n.dashEmptyPaidTitle;
     }
   }
 
-  String get _emptySubtitle {
+  String _emptySubtitle(AppLocalizations l10n) {
     switch (widget.type) {
       case DashboardListType.clients:
-        return 'Add clients from the Clients tab.';
+        return l10n.dashEmptyClientsSubtitle;
       case DashboardListType.animals:
-        return 'Animals will appear here after they are added to clients.';
+        return l10n.dashEmptyAnimalsSubtitle;
       case DashboardListType.upcomingVisits:
-        return 'No visits are scheduled in the next 30 days.';
+        return l10n.dashEmptyUpcomingSubtitle;
       case DashboardListType.pastDueVisits:
-        return 'All visits are marked complete.';
+        return l10n.dashEmptyPastDueSubtitle;
       case DashboardListType.outstandingVisits:
-        return 'All completed visits have been paid.';
+        return l10n.dashEmptyOutstandingSubtitle;
       case DashboardListType.paidVisits:
-        return 'Paid visits will appear here after invoices or visits are marked paid.';
+        return l10n.dashEmptyPaidSubtitle;
     }
   }
 
@@ -181,22 +182,22 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
     _loadData();
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return EmptyState(
       icon: _emptyIcon,
-      title: _emptyTitle,
-      subtitle: _emptySubtitle,
+      title: _emptyTitle(l10n),
+      subtitle: _emptySubtitle(l10n),
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(AppLocalizations l10n) {
     if (_isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.65,
-            child: _buildEmptyState(),
+            child: _buildEmptyState(l10n),
           ),
         ],
       );
@@ -217,7 +218,7 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
                     ? client.phone
                     : client.email.isNotEmpty
                         ? client.email
-                        : 'No contact info',
+                        : l10n.noContactInfo,
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _openClient(client),
@@ -267,13 +268,14 @@ class _DashboardListScreenState extends State<DashboardListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(title: Text(_title(l10n))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: _buildList(),
+              child: _buildList(l10n),
             ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
@@ -86,7 +87,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _loadVisits();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Appointment confirmed')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.appointmentConfirmedSnackbar)),
     );
   }
 
@@ -115,15 +116,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Calendar')),
+        appBar: AppBar(title: Text(l10n.calendarTitle)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar')),
+      appBar: AppBar(title: Text(l10n.calendarTitle)),
       body: Column(
         children: [
           TableCalendar<Visit>(
@@ -167,7 +169,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: _selectedVisits.isEmpty
                 ? Center(
                     child: Text(
-                      'No visits on ${AppUtils.formatDate(_selectedDay!)}',
+                      l10n.noVisitsOnDate(AppUtils.formatDate(_selectedDay!)),
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   )
@@ -198,7 +200,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addVisit,
         icon: const Icon(Icons.add),
-        label: const Text('New Appointment'),
+        label: Text(l10n.newAppointmentButton),
       ),
     );
   }

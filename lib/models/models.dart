@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 class Client {
   final int? id;
   final String firstName;
@@ -328,18 +330,18 @@ class ServiceLine {
 enum ChargeType { mileage, tolls, reimbursement, transport, other }
 
 extension ChargeTypeDisplay on ChargeType {
-  String get label {
+  String label(AppLocalizations l10n) {
     switch (this) {
       case ChargeType.mileage:
-        return 'Mileage';
+        return l10n.chargeTypeMileage;
       case ChargeType.tolls:
-        return 'Tolls';
+        return l10n.chargeTypeTolls;
       case ChargeType.reimbursement:
-        return 'Reimbursement';
+        return l10n.chargeTypeReimbursement;
       case ChargeType.transport:
-        return 'Transport';
+        return l10n.chargeTypeTransport;
       case ChargeType.other:
-        return 'Other';
+        return l10n.chargeTypeOther;
     }
   }
 

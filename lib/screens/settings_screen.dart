@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/backup_service.dart';
 import '../services/export_service.dart';
@@ -34,6 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _currencySymbol = '\$';
   String _distanceUnit = 'mi';
   String _terrainThemeId = 'desert';
+  String _languageCode = '';
   List<ServiceTemplate> _templates = [];
 
   static const _presetCurrencies = [
@@ -70,6 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _currencySymbol = await DatabaseService.getCurrencySymbol();
     _distanceUnit = await DatabaseService.getDistanceUnit();
     _terrainThemeId = await DatabaseService.getTerrainThemeId();
+    _languageCode = await DatabaseService.getLanguageCode();
     _templates = await DatabaseService.getServiceTemplates();
     _reminderCtrl.text = await DatabaseService.getReminderTemplate();
 
@@ -117,6 +120,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _onLanguageChanged(String code) async {
+    setState(() => _languageCode = code);
+    await DatabaseService.setLanguageCode(code);
+    AppUtils.applyLocale(code);
+  }
+
   Future<void> _save() async {
     await DatabaseService.setSetting('company_name', _nameCtrl.text.trim());
     await DatabaseService.setSetting(
@@ -158,7 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved!')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.settingsSavedSnackbar)),
     );
   }
 
@@ -170,7 +179,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $error')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.exportFailedSnackbar('$error'))),
       );
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -185,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup failed: $error')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.backupFailedSnackbar('$error'))),
       );
     } finally {
       if (mounted) setState(() => _backingUp = false);
@@ -193,21 +202,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _restoreBackup() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Restore Backup?'),
-        content: const Text(
-          'This will replace all current FarrierLog data on this device.',
-        ),
+        title: Text(l10n.restoreBackupTitle),
+        content: Text(l10n.restoreBackupMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Restore'),
+            child: Text(l10n.restoreButton),
           ),
         ],
       ),
@@ -229,12 +237,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await _loadSettings();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup restored.')),
+        SnackBar(content: Text(l10n.backupRestoredSnackbar)),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Restore failed: $error')),
+        SnackBar(content: Text(l10n.restoreFailedSnackbar('$error'))),
       );
     } finally {
       if (mounted) setState(() => _restoring = false);
@@ -248,24 +256,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _addTemplateDialog() async {
+    final l10n = AppLocalizations.of(context)!;
     final descCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('New Service Template'),
+        title: Text(l10n.newServiceTemplateTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: descCtrl,
-              decoration: const InputDecoration(labelText: 'Service'),
+              decoration: InputDecoration(labelText: l10n.serviceLabel),
               autofocus: true,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: priceCtrl,
-              decoration: const InputDecoration(labelText: 'Price'),
+              decoration: InputDecoration(labelText: l10n.priceLabel),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
@@ -273,11 +282,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: Text(l10n.save),
           ),
         ],
       ),
@@ -296,18 +305,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dropdownSymbol = _isCustomCurrency ? 'Custom...' : _currencySymbol;
+    final l10n = AppLocalizations.of(context)!;
+    final dropdownSymbol = _isCustomCurrency ? l10n.currencyCustomOption : _currencySymbol;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
             child: ListTile(
               leading: const Icon(Icons.menu_book_outlined),
-              title: const Text('Help & Guide'),
-              subtitle: const Text('How to use FarrierLog'),
+              title: Text(l10n.helpGuideTitle),
+              subtitle: Text(l10n.helpGuideSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -316,7 +326,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Color', style: Theme.of(context).textTheme.titleMedium),
+          Text(l10n.languageLabel, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _languageCode,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+            items: [
+              DropdownMenuItem(value: '', child: Text(l10n.languageSystemDefault)),
+              const DropdownMenuItem(value: 'en', child: Text('English')),
+              const DropdownMenuItem(value: 'es', child: Text('Español')),
+              const DropdownMenuItem(value: 'fr', child: Text('Français')),
+            ],
+            onChanged: (value) {
+              if (value != null) _onLanguageChanged(value);
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(l10n.colorLabel, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -356,10 +382,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             }).toList(),
           ),
           const SizedBox(height: 24),
-          Text('Company Information',
+          Text(l10n.companyInfoTitle,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('Appears on invoices',
+          Text(l10n.appearsOnInvoices,
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           Center(
@@ -381,57 +407,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Center(
             child: TextButton(
               onPressed: _pickLogo,
-              child: const Text('Upload Logo'),
+              child: Text(l10n.uploadLogoButton),
             ),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _nameCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Company Name', border: OutlineInputBorder()),
+            decoration: InputDecoration(
+                labelText: l10n.companyNameLabel, border: const OutlineInputBorder()),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _addressCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Address', border: OutlineInputBorder()),
+            decoration: InputDecoration(
+                labelText: l10n.addressLabel, border: const OutlineInputBorder()),
             maxLines: 2,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _phoneCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Phone', border: OutlineInputBorder()),
+            decoration: InputDecoration(
+                labelText: l10n.phoneLabel, border: const OutlineInputBorder()),
             keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _emailCtrl,
-            decoration: const InputDecoration(
-                labelText: 'Email', border: OutlineInputBorder()),
+            decoration: InputDecoration(
+                labelText: l10n.emailLabel, border: const OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 24),
-          Text('Currency & Units',
+          Text(l10n.currencyUnitsTitle,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: dropdownSymbol,
-            decoration: const InputDecoration(
-              labelText: 'Currency',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.currencyLabel,
+              border: const OutlineInputBorder(),
             ),
-            items: const [
-              DropdownMenuItem(value: '\$', child: Text('\$ — US Dollar')),
-              DropdownMenuItem(value: '€', child: Text('€ — Euro')),
-              DropdownMenuItem(value: '£', child: Text('£ — Pound')),
-              DropdownMenuItem(value: '¥', child: Text('¥ — Yen / Yuan')),
-              DropdownMenuItem(value: '₹', child: Text('₹ — Rupee')),
-              DropdownMenuItem(value: 'CAD\$', child: Text('CAD\$ — Canadian Dollar')),
-              DropdownMenuItem(value: 'AUD\$', child: Text('AUD\$ — Australian Dollar')),
-              DropdownMenuItem(value: 'NZD\$', child: Text('NZD\$ — New Zealand Dollar')),
-              DropdownMenuItem(value: 'R', child: Text('R — South African Rand')),
-              DropdownMenuItem(value: 'Custom...', child: Text('Custom...')),
+            items: [
+              DropdownMenuItem(value: '\$', child: Text(l10n.currencyUsd)),
+              DropdownMenuItem(value: '€', child: Text(l10n.currencyEur)),
+              DropdownMenuItem(value: '£', child: Text(l10n.currencyGbp)),
+              DropdownMenuItem(value: '¥', child: Text(l10n.currencyJpy)),
+              DropdownMenuItem(value: '₹', child: Text(l10n.currencyInr)),
+              DropdownMenuItem(value: 'CAD\$', child: Text(l10n.currencyCad)),
+              DropdownMenuItem(value: 'AUD\$', child: Text(l10n.currencyAud)),
+              DropdownMenuItem(value: 'NZD\$', child: Text(l10n.currencyNzd)),
+              DropdownMenuItem(value: 'R', child: Text(l10n.currencyZar)),
+              DropdownMenuItem(value: 'Custom...', child: Text(l10n.currencyCustomOption)),
             ],
             onChanged: (value) {
               if (value == null) return;
@@ -447,42 +473,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          if (_isCustomCurrency || dropdownSymbol == 'Custom...') ...[
+          if (_isCustomCurrency || dropdownSymbol == l10n.currencyCustomOption) ...[
             const SizedBox(height: 8),
             TextField(
               controller: _customCurrencyCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Custom currency symbol',
-                hintText: 'e.g. CHF, kr, RM',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.customCurrencySymbolLabel,
+                hintText: l10n.customCurrencySymbolHint,
+                border: const OutlineInputBorder(),
               ),
               maxLength: 5,
               onChanged: (v) => setState(() => _currencySymbol = v.trim()),
             ),
           ],
           const SizedBox(height: 12),
-          Text('Distance unit',
+          Text(l10n.distanceUnitLabel,
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 8),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'mi', label: Text('Miles (mi)')),
-              ButtonSegment(value: 'km', label: Text('Kilometres (km)')),
+            segments: [
+              ButtonSegment(value: 'mi', label: Text(l10n.distanceMiles)),
+              ButtonSegment(value: 'km', label: Text(l10n.distanceKm)),
             ],
             selected: {_distanceUnit},
             onSelectionChanged: (selection) =>
                 setState(() => _distanceUnit = selection.first),
           ),
           const SizedBox(height: 24),
-          Text('Mileage', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.mileageTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('Default rate used when adding mileage or transport charges',
+          Text(l10n.mileageSubtitle,
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
           TextField(
             controller: _mileageRateCtrl,
             decoration: InputDecoration(
-              labelText: 'Rate (per $_distanceUnit)',
+              labelText: l10n.mileageRateLabel(_distanceUnit),
               prefixText: _isCustomCurrency
                   ? _customCurrencyCtrl.text.trim()
                   : _currencySymbol,
@@ -491,37 +517,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: 24),
-          Text('Calendar', style: Theme.of(context).textTheme.titleLarge),
+          Text(l10n.calendarTitle, style: Theme.of(context).textTheme.titleLarge),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Start calendar week on Monday'),
+            title: Text(l10n.startWeekMondaySwitch),
             value: _startCalendarWeekOnMonday,
             onChanged: (value) {
               setState(() => _startCalendarWeekOnMonday = value);
             },
           ),
           const SizedBox(height: 24),
-          Text('Reminder Message',
+          Text(l10n.reminderMessageTitle,
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           TextField(
             controller: _reminderCtrl,
-            decoration: const InputDecoration(
-              labelText: 'SMS Reminder Template',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.reminderTemplateLabel,
+              border: const OutlineInputBorder(),
             ),
             maxLines: 4,
           ),
           const SizedBox(height: 4),
           Text(
-            'Use {name}, {date}, and {time} — they\'ll be filled in automatically.',
+            l10n.reminderTemplateHelp('{name}', '{date}', '{time}'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: const Text('Save Settings'),
+            label: Text(l10n.saveSettingsButton),
             style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 48)),
           ),
@@ -529,19 +555,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Service Templates',
+              Text(l10n.serviceTemplatesTitle,
                   style: Theme.of(context).textTheme.titleLarge),
               IconButton(
                 onPressed: _addTemplateDialog,
                 icon: const Icon(Icons.add_circle_outline),
-                tooltip: 'Add template',
+                tooltip: l10n.addTemplateTooltip,
               ),
             ],
           ),
           if (_templates.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('No saved templates yet',
+              child: Text(l10n.noSavedTemplates,
                   style: Theme.of(context).textTheme.bodySmall),
             )
           else
@@ -575,7 +601,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.ios_share),
-            label: Text(_exporting ? 'Exporting...' : 'Export Data'),
+            label: Text(_exporting ? l10n.exportingButton : l10n.exportDataButton),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -590,7 +616,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.backup),
-            label: Text(_backingUp ? 'Creating Backup...' : 'Create Backup'),
+            label: Text(_backingUp ? l10n.creatingBackupButton : l10n.createBackupButton),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -605,7 +631,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.restore),
-            label: Text(_restoring ? 'Restoring...' : 'Restore Backup'),
+            label: Text(_restoring ? l10n.restoringButton : l10n.restoreBackupButton),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -614,7 +640,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.help_outline),
-            title: const Text('Show welcome guide again'),
+            title: Text(l10n.showWelcomeGuideAgain),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.push(
               context,

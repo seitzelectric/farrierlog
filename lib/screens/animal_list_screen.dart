@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/database_service.dart';
 import '../widgets/widgets.dart';
@@ -57,9 +58,10 @@ class _AnimalListScreenState extends State<AnimalListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Animals'),
+        title: Text(l10n.animalsTitle),
       ),
       body: Column(
         children: [
@@ -69,7 +71,7 @@ class _AnimalListScreenState extends State<AnimalListScreen> {
               controller: _searchCtrl,
               autofocus: false,
               decoration: InputDecoration(
-                hintText: 'Search by animal or client name...',
+                hintText: l10n.searchAnimalsHint,
                 prefixIcon: const Icon(Icons.search),
                 border: const OutlineInputBorder(),
                 isDense: true,
@@ -89,7 +91,7 @@ class _AnimalListScreenState extends State<AnimalListScreen> {
             child: Row(
               children: [
                 Text(
-                  '${_filtered.length} animal${_filtered.length == 1 ? '' : 's'}',
+                  l10n.animalCount(_filtered.length),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -110,8 +112,8 @@ class _AnimalListScreenState extends State<AnimalListScreen> {
                             const SizedBox(height: 16),
                             Text(
                               _searchCtrl.text.isEmpty
-                                  ? 'No animals yet'
-                                  : 'No animals match "${_searchCtrl.text}"',
+                                  ? l10n.noAnimalsYet
+                                  : l10n.noAnimalsMatch(_searchCtrl.text),
                             ),
                           ],
                         ),
