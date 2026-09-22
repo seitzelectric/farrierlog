@@ -56,7 +56,7 @@ Photos, invoices, and backups are stored as files on disk (paths recorded in the
 
 ### Versioning
 
-Android `versionCode` in `android/app/build.gradle` is hardcoded (not driven by `flutter.versionCode` from `local.properties`) — bump it manually for each release build, separately from the `version:` field in `pubspec.yaml`. Current: `version: 1.1.0+23`, `versionCode 23`.
+Android `versionCode` in `android/app/build.gradle` is hardcoded (not driven by `flutter.versionCode` from `local.properties`) — bump it manually for each release build, separately from the `version:` field in `pubspec.yaml`. Current: `version: 1.1.0+24`, `versionCode 24`.
 
 ## Business Context
 
