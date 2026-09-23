@@ -1,6 +1,6 @@
 {
-    "name": "farrier_log",
-    "short_name": "farrier_log",
+    "name": "FarrierLog",
+    "short_name": "FarrierLog",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

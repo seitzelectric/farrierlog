@@ -56,4 +56,4 @@ FarrierLog is intended for business and professional use and is not directed tow
 
 For questions regarding this Privacy Policy:
 
-Email: seitzelectric@gmail.com
+Email: info@roguebusinessapps.com

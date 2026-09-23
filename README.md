@@ -34,7 +34,7 @@ FarrierLog helps a working farrier run their business from their phone:
 - **Offline-first.** SQLite via `sqflite` is the only persistence layer. No backend, no cloud sync, no accounts required.
 - **No state management library.** Each screen loads its own data from `DatabaseService` in `initState`/`_loadData`. Screens reload after returning from pushed routes.
 - **Static service pattern.** `DatabaseService`, `BackupService`, `ExportService`, and `InvoiceService` are all static-method classes.
-- **Current DB version:** 8 (see `database_service.dart` → `_dbVersion`)
+- **Current DB version:** 11 (see `database_service.dart` → `_dbVersion`)
 
 ---
 
