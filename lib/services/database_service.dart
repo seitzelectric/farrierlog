@@ -507,6 +507,18 @@ class DatabaseService {
     return visitId;
   }
 
+  static Future<bool> visitExistsAt(int clientId, DateTime dateTime) async {
+    final db = await database;
+    final rows = await db.query(
+      'visits',
+      columns: ['id'],
+      where: 'client_id = ? AND datetime = ?',
+      whereArgs: [clientId, dateTime.toIso8601String()],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   static Future<void> updateVisitNotes(int id, String notes) async {
     final db = await database;
     await db.update('visits', {'notes': notes}, where: 'id = ?', whereArgs: [id]);

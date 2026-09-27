@@ -6,10 +6,12 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/models.dart';
 import '../services/backup_service.dart';
 import '../services/export_service.dart';
+import '../services/ics_parser.dart';
 import '../services/invoice_service.dart';
 import '../services/database_service.dart';
 import '../utils/utils.dart';
 import 'help_screen.dart';
+import 'import_calendar_screen.dart';
 import 'onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -199,6 +201,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) setState(() => _backingUp = false);
     }
+  }
+
+  Future<void> _importCalendar() async {
+    final l10n = AppLocalizations.of(context)!;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['ics'],
+    );
+    final path = picked?.files.single.path;
+    if (path == null || !mounted) return;
+
+    final List<IcsEvent> events;
+    try {
+      events = IcsParser.parse(await File(path).readAsString());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.calendarFileReadFailed('$error'))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    if (events.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.noCalendarEventsFound)),
+      );
+      return;
+    }
+
+    final imported = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(builder: (_) => ImportCalendarScreen(events: events)),
+    );
+    if (imported == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.importedVisitsSnackbar(imported))),
+    );
   }
 
   Future<void> _restoreBackup() async {
@@ -602,6 +641,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   )
                 : const Icon(Icons.ios_share),
             label: Text(_exporting ? l10n.exportingButton : l10n.exportDataButton),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _importCalendar,
+            icon: const Icon(Icons.event_available),
+            label: Text(l10n.importCalendarButton),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 48),
             ),

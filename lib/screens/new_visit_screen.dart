@@ -103,7 +103,7 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   Future<void> _pickClient() async {
     final selected = await showDialog<Client>(
       context: context,
-      builder: (ctx) => _ClientSearchDialog(clients: _clients),
+      builder: (ctx) => ClientSearchDialog(clients: _clients),
     );
     if (selected != null) {
       await _onClientChanged(selected);
@@ -366,15 +366,22 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   }
 }
 
-class _ClientSearchDialog extends StatefulWidget {
-  const _ClientSearchDialog({required this.clients});
+/// Searchable client picker. Pops with the chosen [Client], or with whatever
+/// value one of the optional [extraOptions] tiles pops with.
+class ClientSearchDialog extends StatefulWidget {
+  const ClientSearchDialog({
+    super.key,
+    required this.clients,
+    this.extraOptions = const [],
+  });
   final List<Client> clients;
+  final List<Widget> extraOptions;
 
   @override
-  State<_ClientSearchDialog> createState() => _ClientSearchDialogState();
+  State<ClientSearchDialog> createState() => _ClientSearchDialogState();
 }
 
-class _ClientSearchDialogState extends State<_ClientSearchDialog> {
+class _ClientSearchDialogState extends State<ClientSearchDialog> {
   final TextEditingController _searchCtrl = TextEditingController();
   List<Client> _filtered = [];
 
@@ -424,6 +431,7 @@ class _ClientSearchDialogState extends State<_ClientSearchDialog> {
               ),
             ),
           ),
+          ...widget.extraOptions,
           const Divider(height: 1),
           Expanded(
             child: _filtered.isEmpty

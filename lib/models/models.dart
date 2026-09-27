@@ -594,3 +594,40 @@ class InvoiceRecord {
         updatedAt: DateTime.now(),
       );
 }
+
+// ==================== ICS EVENT ====================
+
+/// A single VEVENT parsed from an imported `.ics` calendar file. Not a DB
+/// model — just a parse result mapped onto a [Visit] by the import screen.
+class IcsEvent {
+  final String uid;
+  final String summary;
+  final DateTime startDateTime;
+  final DateTime? endDateTime;
+  final String location;
+  final String description;
+  final bool isAllDay;
+
+  /// True when the event carried an RRULE. Only the listed instance is
+  /// imported; recurrence rules are not expanded.
+  final bool isRecurring;
+
+  /// Visit recurrence derived from a simple RRULE (weekly with INTERVAL, or
+  /// monthly approximated as 4 weeks). Null for one-off events and for rules
+  /// too complex to map.
+  final int? recurrenceWeeks;
+
+  bool get hasUnsupportedRecurrence => isRecurring && recurrenceWeeks == null;
+
+  const IcsEvent({
+    required this.uid,
+    required this.summary,
+    required this.startDateTime,
+    this.endDateTime,
+    this.location = '',
+    this.description = '',
+    this.isAllDay = false,
+    this.isRecurring = false,
+    this.recurrenceWeeks,
+  });
+}

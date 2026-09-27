@@ -5,9 +5,13 @@ import '../models/models.dart';
 class ClientFormDialog extends StatefulWidget {
   final Client? client;
 
+  /// Pre-fills the fields of a new client (ignored when [client] is set).
+  final Client? prefill;
+
   const ClientFormDialog({
     super.key,
     this.client,
+    this.prefill,
   });
 
   @override
@@ -29,7 +33,7 @@ class _ClientFormDialogState extends State<ClientFormDialog> {
   void initState() {
     super.initState();
 
-    final c = widget.client;
+    final c = widget.client ?? widget.prefill;
 
     _firstNameCtrl = TextEditingController(text: c?.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: c?.lastName ?? '');

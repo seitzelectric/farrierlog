@@ -740,6 +740,98 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportingButton => 'Exporting...';
 
   @override
+  String get importCalendarButton => 'Import Calendar (.ics)';
+
+  @override
+  String get importCalendarTitle => 'Import Calendar';
+
+  @override
+  String get noCalendarEventsFound => 'No calendar events found in this file';
+
+  @override
+  String calendarFileReadFailed(String error) {
+    return 'Couldn\'t read calendar file: $error';
+  }
+
+  @override
+  String get importSelectAll => 'Select All';
+
+  @override
+  String get importDeselectAll => 'Deselect All';
+
+  @override
+  String importSelectedButton(int count) {
+    return 'Import Selected ($count)';
+  }
+
+  @override
+  String get importAllDay => 'All day';
+
+  @override
+  String get importSkipNoClient => 'Skip — no client';
+
+  @override
+  String get importCreateNewClient => 'Create new client from event';
+
+  @override
+  String get importDuplicateWarning =>
+      'This client already has a visit at this time';
+
+  @override
+  String importRecurrenceWeeks(int weeks) {
+    String _temp0 = intl.Intl.pluralLogic(
+      weeks,
+      locale: localeName,
+      other: 'Repeats every $weeks weeks — imported as a recurring visit',
+      one: 'Repeats every week — imported as a recurring visit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importRecurrenceUnsupported =>
+      'Repeat rule not supported — imported as a one-time visit';
+
+  @override
+  String get importDuplicatesTitle => 'Possible Duplicates';
+
+  @override
+  String importDuplicatesMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected events already have a visit',
+      one: '1 selected event already has a visit',
+    );
+    return '$_temp0 for the same client at the same time. Import anyway?';
+  }
+
+  @override
+  String get importAnywayButton => 'Import Anyway';
+
+  @override
+  String importedVisitsSnackbar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Imported $count visits',
+      one: 'Imported 1 visit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importFilteredCount(int shown, int total) {
+    return 'Showing $shown of $total events';
+  }
+
+  @override
+  String get importFilterByDate => 'Filter by date';
+
+  @override
+  String get importNoEventsInRange => 'No events in the selected date range';
+
+  @override
   String backupFailedSnackbar(String error) {
     return 'Backup failed: $error';
   }

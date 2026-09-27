@@ -752,6 +752,101 @@ class AppLocalizationsFr extends AppLocalizations {
   String get exportingButton => 'Exportation en cours...';
 
   @override
+  String get importCalendarButton => 'Importer un calendrier (.ics)';
+
+  @override
+  String get importCalendarTitle => 'Importer un calendrier';
+
+  @override
+  String get noCalendarEventsFound => 'Aucun événement trouvé dans ce fichier';
+
+  @override
+  String calendarFileReadFailed(String error) {
+    return 'Impossible de lire le fichier de calendrier : $error';
+  }
+
+  @override
+  String get importSelectAll => 'Tout sélectionner';
+
+  @override
+  String get importDeselectAll => 'Tout désélectionner';
+
+  @override
+  String importSelectedButton(int count) {
+    return 'Importer la sélection ($count)';
+  }
+
+  @override
+  String get importAllDay => 'Toute la journée';
+
+  @override
+  String get importSkipNoClient => 'Ignorer — aucun client';
+
+  @override
+  String get importCreateNewClient =>
+      'Créer un client à partir de l\'événement';
+
+  @override
+  String get importDuplicateWarning =>
+      'Ce client a déjà une visite à cette heure';
+
+  @override
+  String importRecurrenceWeeks(int weeks) {
+    String _temp0 = intl.Intl.pluralLogic(
+      weeks,
+      locale: localeName,
+      other:
+          'Se répète toutes les $weeks semaines — importé comme visite récurrente',
+      one: 'Se répète chaque semaine — importé comme visite récurrente',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get importRecurrenceUnsupported =>
+      'Règle de répétition non prise en charge — importé comme visite unique';
+
+  @override
+  String get importDuplicatesTitle => 'Doublons possibles';
+
+  @override
+  String importDuplicatesMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count événements sélectionnés ont déjà une visite',
+      one: '1 événement sélectionné a déjà une visite',
+    );
+    return '$_temp0 pour le même client à la même heure. Importer quand même ?';
+  }
+
+  @override
+  String get importAnywayButton => 'Importer quand même';
+
+  @override
+  String importedVisitsSnackbar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count visites importées',
+      one: '1 visite importée',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String importFilteredCount(int shown, int total) {
+    return '$shown événements affichés sur $total';
+  }
+
+  @override
+  String get importFilterByDate => 'Filtrer par date';
+
+  @override
+  String get importNoEventsInRange =>
+      'Aucun événement dans la plage de dates sélectionnée';
+
+  @override
   String backupFailedSnackbar(String error) {
     return 'Échec de la sauvegarde : $error';
   }

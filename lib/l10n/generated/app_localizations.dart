@@ -1360,6 +1360,126 @@ abstract class AppLocalizations {
   /// **'Exporting...'**
   String get exportingButton;
 
+  /// No description provided for @importCalendarButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Calendar (.ics)'**
+  String get importCalendarButton;
+
+  /// No description provided for @importCalendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Calendar'**
+  String get importCalendarTitle;
+
+  /// No description provided for @noCalendarEventsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No calendar events found in this file'**
+  String get noCalendarEventsFound;
+
+  /// No description provided for @calendarFileReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read calendar file: {error}'**
+  String calendarFileReadFailed(String error);
+
+  /// No description provided for @importSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get importSelectAll;
+
+  /// No description provided for @importDeselectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect All'**
+  String get importDeselectAll;
+
+  /// No description provided for @importSelectedButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Selected ({count})'**
+  String importSelectedButton(int count);
+
+  /// No description provided for @importAllDay.
+  ///
+  /// In en, this message translates to:
+  /// **'All day'**
+  String get importAllDay;
+
+  /// No description provided for @importSkipNoClient.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip — no client'**
+  String get importSkipNoClient;
+
+  /// No description provided for @importCreateNewClient.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new client from event'**
+  String get importCreateNewClient;
+
+  /// No description provided for @importDuplicateWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This client already has a visit at this time'**
+  String get importDuplicateWarning;
+
+  /// No description provided for @importRecurrenceWeeks.
+  ///
+  /// In en, this message translates to:
+  /// **'{weeks, plural, one{Repeats every week — imported as a recurring visit} other{Repeats every {weeks} weeks — imported as a recurring visit}}'**
+  String importRecurrenceWeeks(int weeks);
+
+  /// No description provided for @importRecurrenceUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat rule not supported — imported as a one-time visit'**
+  String get importRecurrenceUnsupported;
+
+  /// No description provided for @importDuplicatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Possible Duplicates'**
+  String get importDuplicatesTitle;
+
+  /// No description provided for @importDuplicatesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 selected event already has a visit} other{{count} selected events already have a visit}} for the same client at the same time. Import anyway?'**
+  String importDuplicatesMessage(int count);
+
+  /// No description provided for @importAnywayButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Anyway'**
+  String get importAnywayButton;
+
+  /// No description provided for @importedVisitsSnackbar.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Imported 1 visit} other{Imported {count} visits}}'**
+  String importedVisitsSnackbar(int count);
+
+  /// No description provided for @importFilteredCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total} events'**
+  String importFilteredCount(int shown, int total);
+
+  /// No description provided for @importFilterByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by date'**
+  String get importFilterByDate;
+
+  /// No description provided for @importNoEventsInRange.
+  ///
+  /// In en, this message translates to:
+  /// **'No events in the selected date range'**
+  String get importNoEventsInRange;
+
   /// No description provided for @backupFailedSnackbar.
   ///
   /// In en, this message translates to:
