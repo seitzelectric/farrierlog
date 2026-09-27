@@ -27,7 +27,8 @@ Last upgraded 2026-09-20. Keep these aligned with what the installed Flutter sup
 - Flutter 3.47.5 (stable) / Dart 3.13.4 — `pubspec.yaml` SDK constraint `>=3.13.0 <4.0.0`
 - Android Gradle Plugin 9.1.0 and Kotlin 2.4.0 (`android/settings.gradle`), Gradle 9.3.1 (`gradle-wrapper.properties`)
 - JDK 17, `compileSdk`/`targetSdk` 36, `minSdk` from `flutter.minSdkVersion`
-- `android/gradle.properties` intentionally keeps the AGP 9 opt-outs (`android.builtInKotlin=false`, `android.newDsl=false`) and a pinned `android.aapt2Version=8.6.1-11315950`. Don't remove them without a separate migration pass and a release build to verify.
+- `android/gradle.properties` intentionally keeps the AGP 9 opt-outs (`android.builtInKotlin=false`, `android.newDsl=false`). Don't remove them without a separate migration pass and a release build to verify.
+- Don't pin `android.aapt2Version` to an older aapt2 than AGP ships. A pin to 8.6.1 (removed 2026-09-26) broke every release APK under AGP 9.1: `optimizeReleaseResources` passes `--resource-path-shortening-map=<path>`, which aapt2 8.6.1 rejects; AGP ignores the exit code and packages an APK with no `AndroidManifest.xml`/`resources.arsc` while reporting success. AABs were unaffected. After any toolchain change, check the APK actually contains `AndroidManifest.xml` (e.g. `apkanalyzer manifest version-code`).
 
 ## Architecture
 
